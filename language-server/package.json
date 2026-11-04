@@ -1,0 +1,14 @@
+{
+  "name": "markdoc-lsp-server-bundle",
+  "private": true,
+  "description": "Bundles @markdoc/language-server into a single JS file shipped with the plugin",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@markdoc/language-server": "0.0.14"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}

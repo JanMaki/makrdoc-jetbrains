@@ -1,0 +1,25 @@
+---
+title: Getting started
+route: /docs
+---
+
+# Getting started
+
+{% callout type="note" title="Welcome" %}
+This page uses a Markdoc tag from `schema.js`.
+{% /callout %}
+
+{% partial file="partials/footer.mdoc" /%}
+
+See the [guide](/docs/guide).
+
+<!-- 以下は意図的なエラー: 未定義のタグ、許可されていない属性値、必須属性の欠落 -->
+{% unknown %}
+text
+{% /unknown %}
+
+{% callout type="danger" %}
+Invalid type value.
+{% /callout %}
+
+{% figure caption="No src" /%}

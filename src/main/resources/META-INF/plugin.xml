@@ -1,0 +1,26 @@
+<idea-plugin>
+  <id>com.github.markdoc.jetbrains</id>
+  <name>Markdoc Language Service</name>
+  <vendor>JanMaki</vendor>
+
+  <description><![CDATA[
+    <p><b>Requires a JetBrains IDE 2026.1.4 or later with Node.js support.</b></p>
+    <p>Unofficial Markdoc integration built on the official
+    <a href="https://github.com/markdoc/language-server">@markdoc/language-server</a>:
+    tag and attribute completion, schema validation and syntax errors for
+    <code>.mdoc</code>, <code>.markdoc</code> and <code>*.markdoc.md</code> files.</p>
+    <p>This plugin is not affiliated with Stripe or the Markdoc project.</p>
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>org.intellij.plugins.markdown</depends>
+  <depends>NodeJS</depends>
+  <!-- LSP API を持たない IDE でも、ファイルタイプの関連付けだけは動くように optional にする -->
+  <depends optional="true" config-file="lsp.xml">com.intellij.modules.lsp</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <!-- 独自のファイルタイプは作らず、既存の Markdown ファイルタイプに拡張子を追加する -->
+    <fileType name="Markdown" extensions="mdoc;markdoc" patterns="*.markdoc.md"/>
+    <typedHandler implementation="com.github.markdoc.jetbrains.MarkdocTypedHandler"/>
+  </extensions>
+</idea-plugin>

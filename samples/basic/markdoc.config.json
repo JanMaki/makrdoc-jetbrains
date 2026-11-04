@@ -1,0 +1,14 @@
+[
+  {
+    "id": "sample",
+    "path": "docs",
+    "schema": {
+      "path": "schema.js",
+      "type": "node",
+      "watch": true
+    },
+    "routing": {
+      "frontmatter": "route"
+    }
+  }
+]
