@@ -4,9 +4,14 @@ const { server, Services, Plugins } = require("@markdoc/language-server");
 const { capabilities } = require("./capabilities");
 const { MarkdocCompletionProvider } = require("./completion");
 const { FsPathScanner } = require("./scanner");
+const { MarkdocValidationProvider } = require("./validation");
 
 server(
   { ...Services, Scanner: FsPathScanner },
-  { ...Plugins, CompletionProvider: MarkdocCompletionProvider },
+  {
+    ...Plugins,
+    CompletionProvider: MarkdocCompletionProvider,
+    ValidationProvider: MarkdocValidationProvider,
+  },
   capabilities,
 );

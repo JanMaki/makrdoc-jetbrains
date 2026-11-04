@@ -22,5 +22,16 @@
     <!-- 独自のファイルタイプは作らず、既存の Markdown ファイルタイプに拡張子を追加する -->
     <fileType name="Markdown" extensions="mdoc;markdoc" patterns="*.markdoc.md"/>
     <typedHandler implementation="com.github.markdoc.jetbrains.MarkdocTypedHandler"/>
+    <!-- タグの色分け。Markdown ファイルのうち Markdoc ファイルだけを対象にする -->
+    <annotator language="Markdown"
+               implementationClass="com.github.markdoc.jetbrains.highlighting.MarkdocTagAnnotator"/>
+    <colorSettingsPage implementation="com.github.markdoc.jetbrains.highlighting.MarkdocColorSettingsPage"/>
+    <!-- Markdoc ファイルの Ctrl+B を、Markdown の太字の切り替えより「宣言へ移動」を優先させる -->
+    <actionPromoter implementation="com.github.markdoc.jetbrains.MarkdocActionPromoter" order="last"/>
+    <!-- 属性値のファイルパス（partial の file など）からの移動と補完 -->
+    <gotoDeclarationHandler implementation="com.github.markdoc.jetbrains.paths.MarkdocPathGotoDeclarationHandler"/>
+    <!-- パスの中ではほかの補完を止めるため、先に動かす -->
+    <completion.contributor language="Markdown" order="first"
+                            implementationClass="com.github.markdoc.jetbrains.paths.MarkdocPathCompletionContributor"/>
   </extensions>
 </idea-plugin>

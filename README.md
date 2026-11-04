@@ -27,6 +27,9 @@
 | ファイルの関連付け | Markdoc の拡張子を標準の Markdown ファイルタイプに関連付ける |
 | 設定の受け渡し | プロジェクトルートの `markdoc.config.json` を読み、先頭のエントリを初期化オプションでサーバーに渡す。ファイルがなければスキーマなしで起動し、壊れていれば起動しない |
 | 起動条件 | 信頼済みのプロジェクトで、ローカルの Node.js が設定されているときだけ起動する（サーバーはスキーマの JS を実行するため） |
+| ファイルパスへの移動 | `partial` の `file`、ほかのタグの `file`・`src`・`href`・`path` の値で Ctrl+B（Ctrl+クリック）するとファイルへ移動する。`partials/footer.mdoc` の `partials` の上ならディレクトリへ移動する。移動できるパスの上でだけ、Ctrl+B を Markdown の太字の切り替えより優先する |
+| ファイルパスの補完 | 同じ属性の値で、ディレクトリの中身を候補に出す。`/` を入力すると次の階層の候補が出る。`partial` では Markdoc ファイルだけを出す |
+| タグの色分け | `{% … %}` の区切り、タグ名、属性名、文字列、数値、`true`/`false`/`null`、変数、関数に色を付ける。色は Settings → Editor → Color Scheme → Markdoc で変更できる |
 | `/%}` の自動入力 | タグ名の後で `/` を打つと `/%}` まで入れる。閉じタグの書き始め、引用符の中、後ろに `%}` がある場合は補わない |
 
 ## 上流の言語サーバーとの違い
@@ -37,6 +40,7 @@
 |---|---|
 | `capabilities.js` | 上流は補完などの機能を初期化後に動的に登録するが、JetBrains の LSP クライアントは動的登録を使わない。同じ機能を初期化時に宣言する |
 | `completion.js` | 上流の補完は出る場面が少なく、挿入テキストを resolve で補う（JetBrains は resolve の結果から説明文しか使わない）。補完を広げ、挿入テキストを最初から返す |
+| `validation.js` | 上流は partial の存在を起動時のスキャン結果だけで判定し、後から書いた partial を「見つからない」と報告する。編集中の文書とディスク上のファイルで判定する |
 | `scanner.js` | Windows でドライブ文字の大文字・小文字と区切り文字が食い違い、partial が見つからない。パスの表記をそろえる |
 
 プラグイン側でも、サーバーが定義ジャンプなどの行き先を URI ではなくファイルパスで返す問題に対応している（`MarkdocLspClientDescriptor.findFileByUri`）。
@@ -47,7 +51,11 @@
 src/main/kotlin/com/github/markdoc/jetbrains/
   MarkdocFiles.kt                    Markdoc ファイルの判定
   MarkdocConfigReader.kt             markdoc.config.json の読み込みと初期化オプションの組み立て
-  MarkdocTypedHandler.kt             `/` 入力時の `/%}` の自動入力
+  MarkdocTagScanner.kt               タグの中のトークンの切り出し（色分けとパスの特定で共用）
+  MarkdocTypedHandler.kt             `/` 入力時の `/%}` の自動入力と、パスの補完の自動表示
+  MarkdocActionPromoter.kt           パスの上での Ctrl+B を太字の切り替えより優先
+  highlighting/                      タグの色分け（注釈、色の定義、色の設定画面）
+  paths/                             属性値のファイルパスの特定、解決、移動、補完
   lsp/MarkdocLspIntegrationProvider.kt  起動条件の判定
   lsp/MarkdocLspClientDescriptor.kt     サーバーの起動、URI の解決、初期化オプション
   lsp/MarkdocCompletionSupport.kt       属性名の挿入後に補完を開き直す
@@ -74,4 +82,4 @@ samples/basic/                       動作確認用の Markdoc プロジェク�
 
 ## 未実装
 
-仕様書の Stage 2 以降の機能（タグの色分け、アイコン、設定画面、Node.js 未検出時の通知、設定ファイルの変更監視、言語サーバーの選択、`.md` の扱いの切り替えなど）はまだない。設定ファイルを変更した場合は IDE の再起動が必要。
+仕様書の Stage 2 以降の機能（アイコン、設定画面、Node.js 未検出時の通知、設定ファイルの変更監視、言語サーバーの選択、`.md` の扱いの切り替えなど）はまだない。設定ファイルを変更した場合は IDE の再起動が必要。
