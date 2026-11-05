@@ -1,7 +1,9 @@
 package com.github.markdoc.jetbrains.highlighting
 
+import com.github.markdoc.jetbrains.MarkdocConfigReader
 import com.github.markdoc.jetbrains.MarkdocFiles
 import com.github.markdoc.jetbrains.MarkdocTagScanner
+import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
@@ -13,10 +15,25 @@ import com.intellij.psi.util.CachedValuesManager
  * [MarkdocTagInspectionSuppressor]）で同じ走査結果を使う。
  */
 object MarkdocTagTokens {
-    /** [file] 全体を走査したトークン。ファイルが変わるまでキャッシュする。 */
+    /**
+     * [file] 全体を走査したトークン。設定でコメントが有効なら、コメントの中のタグを除き、コメントのトークンを含む。
+     *
+     * ファイルか設定ファイルが変わるまでキャッシュする。設定ファイルの追加・削除・名前の変更でも読み直せるように、
+     * ファイルの構造の変更（[VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS]）でも捨てる。
+     */
     fun of(file: PsiFile): List<MarkdocTagScanner.Token> =
         CachedValuesManager.getCachedValue(file) {
-            CachedValueProvider.Result.create(MarkdocTagScanner.scan(file.viewProvider.contents), file)
+            val project = file.project
+            val allowComments = MarkdocConfigReader.allowComments(project)
+            val dependencies = listOfNotNull(
+                file,
+                MarkdocConfigReader.findConfigFile(project),
+                VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS,
+            )
+            CachedValueProvider.Result.create(
+                MarkdocTagScanner.scan(file.viewProvider.contents, allowComments),
+                *dependencies.toTypedArray(),
+            )
         }
 
     /**

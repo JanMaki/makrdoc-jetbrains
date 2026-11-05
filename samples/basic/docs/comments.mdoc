@@ -1,0 +1,36 @@
+---
+title: Comments
+---
+
+# Comments
+
+`markdoc.config.json` enables `allowComments`, so `<!-- … -->` is a comment.
+Tags inside a comment should have no color and no errors.
+
+<!-- {% callout type="bogus" %} A block comment {% /callout %} -->
+
+Inline <!-- {% unknown /%} --> comment.
+
+<!--
+{% callout %}
+A comment spanning multiple lines.
+-->
+
+Tags outside comments keep their colors:
+
+{% callout type="note" %}
+A comment inside a tag's body: <!-- {% figure /%} -->
+{% /callout %}
+
+## Unclosed comments
+
+An unclosed `<!--` is not a comment (same as Markdoc 0.5), so the tag after it is colored
+and validated. The language server should keep running (the bundled Markdoc 0.3 used to hang here).
+
+Typing <!-- here {% figure /%}
+
+## Comment in link text
+
+The server should not hang. Markdoc reports "Can't nest 'comment' in 'link'".
+
+[Guide <!-- note -->](/docs/guide)

@@ -5,6 +5,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
+import java.io.IOException
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -54,7 +56,7 @@ object MarkdocConfigReader {
         val root = projectRoot(project) ?: return Result.NotFound
         val file = findConfigFile(project) ?: return Result.NotFound
         val element = try {
-            JsonParser.parseString(VfsUtilCore.loadText(file))
+            JsonParser.parseString(loadText(file))
         } catch (e: JsonParseException) {
             // Gson は行・列を含む詳細を cause 側に持つことが多い
             return Result.Invalid(file, e.cause?.message ?: e.message ?: "Malformed JSON")
@@ -72,6 +74,17 @@ object MarkdocConfigReader {
         // サーバーは root と path を結合してコンテンツの場所を決めるので、省略時はルート直下とする
         if (!config.has("path")) config.addProperty("path", "")
         return Result.Found(file, config)
+    }
+
+    /**
+     * [project] の設定でコメント（`<!-- … -->`）が有効かどうか。設定ファイルがないか読めなければ偽。
+     *
+     * サーバーは設定エントリの `markdoc` を Markdoc の `Tokenizer` にそのまま渡すので、`markdoc.allowComments` を見る。
+     */
+    fun allowComments(project: Project): Boolean {
+        val config = (read(project) as? Result.Found)?.config ?: return false
+        val markdoc = config.get("markdoc") as? JsonObject ?: return false
+        return isTruthy(markdoc.get("allowComments"))
     }
 
     /**
@@ -105,4 +118,37 @@ object MarkdocConfigReader {
      */
     fun projectRoot(project: Project): String? =
         project.guessProjectDir()?.path?.let { Path.of(it).toString() }
+
+    /**
+     * 設定ファイルの中身をディスクから読む。
+     *
+     * VFS の内容は前回の IDE の終了時のまま残り、起動直後（サーバーを起動する時点）にはまだ更新されていないことがある。
+     * そのまま読むと、IDE を閉じている間に書き換えた設定がサーバーに渡らない。ローカルのファイルでなければ VFS から読む。
+     * 文字コードは VFS から読むときと同じく、ファイルの文字コード（[VirtualFile.getCharset]）で解釈する。
+     */
+    private fun loadText(file: VirtualFile): String =
+        try {
+            String(Files.readAllBytes(file.toNioPath()), file.charset)
+        } catch (_: UnsupportedOperationException) {
+            // ローカルのファイルシステムにない（toNioPath が使えない）
+            VfsUtilCore.loadText(file)
+        } catch (_: IOException) {
+            // VFS にはあるがディスクから読めない（消された直後など）
+            VfsUtilCore.loadText(file)
+        }
+
+    /**
+     * [element] が JavaScript で真とみなされるかどうか。Markdoc は `if (config.allowComments)` で判定するので、
+     * `true` だけでなく 0 以外の数、空でない文字列、オブジェクト、配列も真とする。
+     */
+    private fun isTruthy(element: JsonElement?): Boolean {
+        if (element == null || element.isJsonNull) return false
+        if (!element.isJsonPrimitive) return true
+        val primitive = element.asJsonPrimitive
+        return when {
+            primitive.isBoolean -> primitive.asBoolean
+            primitive.isNumber -> primitive.asDouble.let { it != 0.0 && !it.isNaN() }
+            else -> primitive.asString.isNotEmpty()
+        }
+    }
 }
