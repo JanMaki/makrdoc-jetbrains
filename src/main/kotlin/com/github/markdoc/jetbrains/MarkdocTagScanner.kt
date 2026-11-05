@@ -40,16 +40,137 @@ object MarkdocTagScanner {
 
     private val KEYWORDS = setOf("true", "false", "null")
 
-    /** [text] 内のタグを先頭から走査し、トークンを返す。トークンは重ならず、出現順に並ぶ。 */
+    /** フェンスの情報文字列にある `{% process=false %}`。フェンス内のタグを処理しない指定。 */
+    private val PROCESS_FALSE = Regex("""\{%[^%]*\bprocess\s*=\s*false\b""")
+
+    /**
+     * [text] 内のタグを先頭から走査し、トークンを返す。トークンは重ならず、出現順に並ぶ。
+     *
+     * Markdoc と同じく、インラインコード（`` `{% tag %}` ``）の中のタグは除く。フェンスコードブロックの中の
+     * タグは、情報文字列に `{% process=false %}` がなければ処理する（Markdoc の既定）。
+     */
     fun scan(text: CharSequence): List<Token> {
         val tokens = ArrayList<Token>()
+        // 直前のタグが行をまたいで読み進めた位置。次の範囲はここより前から読まない
         var i = 0
-        while (true) {
-            val open = text.indexOf("{%", i)
-            if (open < 0) break
-            i = scanTag(text, open, tokens)
+        // インラインコードを探す範囲（段落など）の先頭。空行とフェンスで区切る
+        var inlineStart = 0
+        var fence: Fence? = null
+        var lineStart = 0
+        while (lineStart < text.length) {
+            val lineEnd = text.indexOf('\n', lineStart).let { if (it < 0) text.length else it }
+            val next = minOf(lineEnd + 1, text.length)
+            val open = fence
+            if (open != null) {
+                if (open.isClosedBy(text, lineStart, lineEnd)) {
+                    fence = null
+                    inlineStart = next
+                } else if (open.process) {
+                    // フェンスの中はコードなので、バッククォートはインラインコードにならない
+                    i = scanRange(text, maxOf(i, lineStart), next, tokens, codeSpans = false)
+                }
+            } else {
+                val opened = Fence.openedAt(text, lineStart, lineEnd)
+                if (opened != null || text.isBlank(lineStart, lineEnd)) {
+                    i = scanRange(text, maxOf(i, inlineStart), lineStart, tokens, codeSpans = true)
+                    inlineStart = next
+                }
+                if (opened != null) {
+                    fence = opened
+                    // 情報文字列の `{% process=false %}` などを色付けする
+                    i = scanRange(text, maxOf(i, lineStart), next, tokens, codeSpans = false)
+                }
+            }
+            lineStart = next
         }
+        if (fence == null) scanRange(text, maxOf(i, inlineStart), text.length, tokens, codeSpans = true)
         return tokens
+    }
+
+    /**
+     * [from] から [to] の手前までにあるタグを走査し、最後に読んだ位置を返す（タグが [to] を越えて続けば [to] より後ろ）。
+     *
+     * [codeSpans] が真なら、インラインコードを読み飛ばす。Markdoc のインライン規則と同じく先に始まった方を優先するため、
+     * タグの中のバッククォートはインラインコードにならず、インラインコードの中の `{%` はタグにならない。
+     */
+    private fun scanRange(text: CharSequence, from: Int, to: Int, tokens: MutableList<Token>, codeSpans: Boolean): Int {
+        var i = from
+        while (i < to) {
+            val c = text[i]
+            i = when {
+                c == '{' && text.at(i + 1) == '%' -> scanTag(text, i, tokens)
+                !codeSpans -> i + 1
+                // エスケープしたバッククォートはインラインコードを始めない
+                c == '\\' && text.at(i + 1) == '`' -> i + 2
+                c == '`' -> skipCodeSpan(text, i, to)
+                else -> i + 1
+            }
+        }
+        return maxOf(i, from)
+    }
+
+    /**
+     * [open] から始まるバッククォートの並びが開くインラインコードを読み飛ばし、その直後の位置を返す。
+     * [to] より前に同じ長さの並びがなければインラインコードではないので、並びの直後を返す。
+     */
+    private fun skipCodeSpan(text: CharSequence, open: Int, to: Int): Int {
+        val length = run(text, open, to, '`')
+        var i = open + length
+        while (i < to) {
+            if (text[i] != '`') {
+                i++
+                continue
+            }
+            val run = run(text, i, to, '`')
+            if (run == length) return i + run
+            i += run
+        }
+        return open + length
+    }
+
+    /** [from] から [to] の手前までで、先頭から続く [marker] の数。 */
+    private fun run(text: CharSequence, from: Int, to: Int, marker: Char): Int {
+        var i = from
+        while (i < to && text[i] == marker) i++
+        return i - from
+    }
+
+    /** [start] から [end] の手前までが空白だけかどうか。 */
+    private fun CharSequence.isBlank(start: Int, end: Int): Boolean = (start until end).all { this[it].isWhitespace() }
+
+    /**
+     * 開いているフェンスコードブロック。
+     *
+     * @property marker フェンスの文字（`` ` `` か `~`）。
+     * @property length 開きフェンスの文字数。閉じフェンスはこれ以上の長さが必要。
+     * @property process 中のタグを処理するかどうか（`{% process=false %}` がなければ真）。
+     */
+    private class Fence(val marker: Char, val length: Int, val process: Boolean) {
+        /** [start] から [end] の手前までの行がこのフェンスを閉じるかどうか。 */
+        fun isClosedBy(text: CharSequence, start: Int, end: Int): Boolean {
+            val i = skipSpaces(text, start)
+            val run = run(text, i, end, marker)
+            return run >= length && text.isBlank(i + run, end)
+        }
+
+        companion object {
+            /**
+             * [start] から [end] の手前までの行がフェンスを開くなら、そのフェンスを返す。
+             *
+             * Markdoc はインデントによるコードブロックを無効にしているため、リストの中などで深く字下げした
+             * フェンスも認める。
+             */
+            fun openedAt(text: CharSequence, start: Int, end: Int): Fence? {
+                val i = skipSpaces(text, start)
+                val marker = text.at(i).takeIf { it == '`' || it == '~' } ?: return null
+                val length = run(text, i, end, marker)
+                if (length < 3) return null
+                val info = text.subSequence(i + length, end)
+                // バッククォートのフェンスの情報文字列にはバッククォートを書けない
+                if (marker == '`' && info.contains('`')) return null
+                return Fence(marker, length, process = !PROCESS_FALSE.containsMatchIn(info))
+            }
+        }
     }
 
     /** [open] の `{%` から始まるタグを走査し、タグの直後の位置を返す。`%}` がなければテキストの末尾まで読む。 */
@@ -119,12 +240,16 @@ object MarkdocTagScanner {
         return i
     }
 
+    /** [index] の文字。範囲外なら ` `。 */
     private fun CharSequence.at(index: Int): Char = if (index < length) this[index] else '\u0000'
 
+    /** 識別子の先頭に置ける文字かどうか。 */
     private fun isIdentStart(c: Char) = c.isLetter() || c == '_'
 
+    /** 識別子の 2 文字目以降に置ける文字かどうか（`-` を含む）。 */
     private fun isIdentPart(c: Char) = c.isLetterOrDigit() || c == '_' || c == '-'
 
+    /** [from] から続く識別子を読み飛ばし、その直後の位置を返す。 */
     private fun skipIdent(text: CharSequence, from: Int): Int {
         var i = from
         while (i < text.length && isIdentPart(text[i])) i++
@@ -152,6 +277,7 @@ object MarkdocTagScanner {
         return minOf(i, text.length)
     }
 
+    /** [from] から続く空白とタブを読み飛ばし、その直後の位置を返す。 */
     private fun skipSpaces(text: CharSequence, from: Int): Int {
         var i = from
         while (i < text.length && (text[i] == ' ' || text[i] == '\t')) i++
