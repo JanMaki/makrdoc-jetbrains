@@ -22,6 +22,7 @@ const NON_STRING_TYPES = [Number, Boolean, Array, Object, "Number", "Boolean", "
  * JetBrains の LSP クライアントは resolve の結果から documentation しか使わない。
  */
 class MarkdocCompletionProvider extends Plugins.CompletionProvider {
+  /** 上流の補完パターンを、タグ名・属性名・属性値の補完に差し替える（ルートの補完は上流のものを使う）。 */
   constructor(config, connection, services) {
     super(config, connection, services);
     const [, , upstreamRoute] = this.completions;

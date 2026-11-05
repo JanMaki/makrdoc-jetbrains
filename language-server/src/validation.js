@@ -10,6 +10,11 @@ const { Plugins } = require("@markdoc/language-server");
  * 起動後に書いた `{% partial %}` は常に「見つからない」と報告される。
  */
 class MarkdocValidationProvider extends Plugins.ValidationProvider {
+  /**
+   * 上流の検証設定のうち `partials` を、編集中の文書にある `{% partial %}` ごとにディスク上の実ファイルで判定し直す。
+   *
+   * Scanner のキャッシュはファイル削除を検知できないことがあるため、キャッシュにあるかどうかでは判定しない。
+   */
   configuration(uri) {
     const config = super.configuration(uri);
     const { Documents, Scanner } = this.services;
@@ -20,10 +25,10 @@ class MarkdocValidationProvider extends Plugins.ValidationProvider {
     for (const node of ast.walk()) {
       if (node.type !== "tag" || node.tag !== "partial") continue;
       const file = node.attributes?.file;
-      if (typeof file !== "string" || !file || partials[file]) continue;
+      if (typeof file !== "string" || !file) continue;
       const relative = toContentRelative(file);
-      if (!relative) continue;
-      if (Scanner.has(relative) || isFileInside(Scanner.path, relative)) partials[file] = true;
+      if (relative && isFileInside(Scanner.path, relative)) partials[file] = true;
+      else delete partials[file];
     }
     return { ...config, partials };
   }
@@ -40,17 +45,50 @@ function toContentRelative(file) {
   return relative;
 }
 
-/** `root` 基準の `relative` が、シンボリックリンクを解決した後も `root` の内側にある通常ファイルかどうか。 */
+/** シンボリックリンクを辿る回数の上限。循環するリンクで止まらなくなるのを防ぐ。 */
+const MAX_LINK_HOPS = 40;
+
+/**
+ * `root` 基準の `relative` が、シンボリックリンクを解決した後も `root` の内側にある通常ファイルかどうか。
+ *
+ * `realpathSync` で一度に解決すると、リンク先が UNC パス（`\\server\share`）でもアクセスしてしまう。
+ * そこでパスを 1 要素ずつ辿り、シンボリックリンクやジャンクションはリンク先がコンテンツルートの内側に
+ * あることを確かめてから、リンク先と残りの要素を続けて辿る。
+ */
 function isFileInside(root, relative) {
   try {
     const realRoot = fs.realpathSync(root);
-    const realTarget = fs.realpathSync(path.resolve(root, relative));
-    const inner = path.relative(realRoot, realTarget);
-    if (!inner || inner === ".." || inner.startsWith(`..${path.sep}`) || path.isAbsolute(inner)) return false;
-    return fs.statSync(realTarget).isFile();
+    const pending = relative.split(/[\\/]+/).filter(Boolean);
+    let current = realRoot;
+    let hops = 0;
+    while (pending.length) {
+      const part = pending.shift();
+      if (part === ".") continue;
+      const next = part === ".." ? path.dirname(current) : path.join(current, part);
+      if (!isInside(realRoot, next)) return false;
+      if (!fs.lstatSync(next).isSymbolicLink()) {
+        current = next;
+        continue;
+      }
+      if (++hops > MAX_LINK_HOPS) return false;
+      const target = fs.readlinkSync(next);
+      if (/^[\\/]{2}/.test(target)) return false;
+      const resolved = path.resolve(current, target);
+      if (!isInside(realRoot, resolved)) return false;
+      // リンク先もリンクを含みうるので、ルートから辿り直す
+      pending.unshift(...path.relative(realRoot, resolved).split(path.sep).filter(Boolean));
+      current = realRoot;
+    }
+    return current !== realRoot && fs.statSync(current).isFile();
   } catch {
     return false;
   }
+}
+
+/** `target` が `root` 自身か、その内側を指すかどうか（どちらも絶対パス）。 */
+function isInside(root, target) {
+  const inner = path.relative(root, target);
+  return inner === "" || (inner !== ".." && !inner.startsWith(`..${path.sep}`) && !path.isAbsolute(inner));
 }
 
 module.exports = { MarkdocValidationProvider };

@@ -11,11 +11,13 @@ const { Services } = require("@markdoc/language-server");
  *   タグに書かれた `/` 区切りの値（`partials/footer.mdoc`）を使う。
  */
 class FsPathScanner extends Services.Scanner {
+  /** 基準パスのドライブ文字を `fsPath` と同じ小文字にそろえる。 */
   constructor(config) {
     super(config);
     this.path = lowerDriveLetter(this.path);
   }
 
+  /** 基準パスからの相対パスを、タグに書かれる値と同じ `/` 区切りで返す。 */
   relativePath(file) {
     const relative = super.relativePath(file);
     // POSIX では区切り文字がもともと `/` なので変換しない
