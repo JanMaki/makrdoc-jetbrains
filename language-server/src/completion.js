@@ -32,6 +32,38 @@ const ARGUMENT_PATTERN = new RegExp(String.raw`${TAG_BODY}[(,][ ]*([\w-]*)$`);
  */
 const PATH_SEGMENT = /([\w-]+)|\[(\d+)\]|\["((?:[^"\\]|\\.)*)"\]/g;
 
+/**
+ * 注釈の入力位置。行にノードの内容があり、その後ろに `{%` と属性だけが続く形（`# 見出し {% id="a" cl`）。
+ * 行頭が `{%` の行はタグなので除く。グループは順に、`{%` の前の内容、入力済みの属性、入力中の名前。
+ */
+const ANNOTATION_PATTERN = /^(?=.*\S)(?!\s*\{%)(.*?)\{%((?: *[\w-]+=(?:"[^"]*"|[^ "%]*))*) *([\w-]*)$/;
+
+/** どのタグにも、注釈にも書ける共通の属性（Markdoc はこの 2 つを属性名として常に受け付ける）。 */
+const COMMON_ATTRIBUTES = {class: {type: String}, id: {type: String}};
+
+/** 表のセル（`td`・`th`）に共通の属性。 */
+const CELL_ATTRIBUTES = {
+    align: {type: String},
+    colspan: {type: Number},
+    rowspan: {type: Number},
+};
+
+/**
+ * 注釈が付くノードごとの、スキーマに書かれていなくても使える属性（`class`・`id` は含まない）。
+ * 見出しの `level` は `#` の数で決まるので注釈では書かない。見出しセル（`th`）だけ `width` を持つ。
+ */
+const NODE_ATTRIBUTES = {
+    heading: {},
+    item: {},
+    paragraph: {},
+    td: CELL_ATTRIBUTES,
+    th: {...CELL_ATTRIBUTES, width: {type: Number}},
+};
+
+// 短縮記法（`{% .note #top %}` の `.class` や `#id`）は補完に対応しない。
+// 短縮記法で書ける名前は自由な文字列で、スキーマから出せる候補がない。
+// 同じ内容は `class="…"`・`id="…"` の属性として補完される。
+
 /** LSP の InsertTextFormat.Snippet。 */
 const SNIPPET = 2;
 
@@ -48,6 +80,7 @@ const NON_STRING_TYPES = [Number, Boolean, Array, Object, "Number", "Boolean", "
  * - `{% callout type=` や `{% callout type="` の直後（属性値。引用符がなければ関数名も）
  * - `{% $`、`type=$`、`$page.` の後（変数名と、その次の階層のキー）
  * - `equals(` や `,` の後（関数名）と、`{% if ` のように主属性を持つタグ名の後（関数名）
+ * - `# 見出し {% ` のようにノードの内容の後（注釈の属性名。ノードの種類は行の内容から推定する）
  *
  * 挿入するテキストは候補を返す時点で決める。上流はタグのスニペットを completionItem/resolve で補うが、
  * JetBrains の LSP クライアントは resolve の結果から documentation しか使わない。
@@ -69,6 +102,11 @@ class MarkdocCompletionProvider extends Plugins.CompletionProvider {
                 // 関数の引数の位置では関数名を出す。属性値（`type=equals(`）より先に照合する
                 match: ARGUMENT_PATTERN,
                 complete: (params) => this.functionItems(params),
+            },
+            {
+                // 注釈（ノードの内容の後ろの `{%`）。タグ名の候補を出さないよう、タグ名より先に照合する
+                match: ANNOTATION_PATTERN,
+                complete: (params, matches) => this.completeAnnotation(params, matches),
             },
             {
                 // タグ名。空の入力でも一致させる
@@ -132,32 +170,83 @@ class MarkdocCompletionProvider extends Plugins.CompletionProvider {
         return [...tagItems, ...functionItems];
     }
 
-    /** 属性名の候補。入力済みの属性は除き、必須の属性を先に並べる。 */
+    /** 属性名の候補。入力済みの属性は除き、必須の属性を先に並べる。どのタグにも `class` と `id` を加える。 */
     completeAttributeNames(params, [, tagName, written]) {
-        const attributes = this.schema(params)?.tags?.[tagName]?.attributes;
-        if (!attributes) return [];
+        const tag = this.schema(params)?.tags?.[tagName];
+        if (!tag) return [];
+        const attributes = tag.attributes ?? {};
 
-        const used = new Set(Array.from(written.matchAll(/([\w-]+)=?/g), ([, name]) => name));
         // `{% if ` のように主属性を値だけで書けるタグでは、最初の位置に関数も書ける
         const functions =
             attributes.primary && !isStringAttribute(attributes.primary) && written.trim() === ""
                 ? this.functionItems(params)
                 : [];
-        const names = Object.entries(attributes)
-            .filter(([name]) => !used.has(name))
-            .map(([name, attribute]) => ({
-                label: name,
-                kind: CompletionItemKind.Property,
-                detail: [typeName(attribute.type), attribute.required ? "required" : ""].filter(Boolean).join(", "),
-                documentation: attribute.description ?? "",
-                sortText: `${attribute.required ? 0 : 1}${name}`,
-                // 文字列は引用符の中にカーソルを置き、それ以外は値を直接書けるようにする
-                insertText: isStringAttribute(attribute) ? `${name}="$1"` : `${name}=$1`,
-                insertTextFormat: SNIPPET,
-                // 挿入後すぐに属性値の候補を出すよう、クライアント（MarkdocCompletionSupport）に知らせる
-                data: {triggerSuggest: true},
-            }));
-        return [...names, ...functions];
+        return [...attributeItems({...COMMON_ATTRIBUTES, ...attributes}, usedNames(written)), ...functions];
+    }
+
+    /**
+     * 注釈の候補。行の内容から注釈が付くノードを推定し、そのノードの属性と `class`・`id` を出す。
+     *
+     * 段落の後ろの `{%` は、インラインのタグの始まりかもしれないので、何も書き始めていなければタグ名も出す。
+     * 見出し・リスト項目・表のセルでは、後ろの `{%` はタグにならないのでタグ名は出さない。
+     */
+    completeAnnotation(params, matches) {
+        const [, content, written, typed] = matches;
+        const node = this.annotatedNode(params, content);
+        const nodes = this.schema(params)?.nodes ?? {};
+        const attributes = {
+            ...COMMON_ATTRIBUTES,
+            ...NODE_ATTRIBUTES[node],
+            ...(nodes[node]?.attributes ?? {}),
+        };
+        // 見出しの `level` は `#` の数で決まる
+        delete attributes.level;
+        delete attributes.primary;
+
+        const names = attributeItems(attributes, usedNames(written));
+        if (node !== "paragraph" || written.trim() !== "") return names;
+        // 段落では `{% callout %}` のようなインラインのタグもあり得る。入力中の名前に合う方が残る
+        return [...names, ...this.completeTagNames(params, [typed, " ", ""])];
+    }
+
+    /**
+     * 注釈の前の内容から、注釈が付くノードの名前を推定する。
+     * 見出し（`#`）、リスト項目（`-` `*` `1.`。`{% table %}` の中ならセル）、それ以外は段落。
+     */
+    annotatedNode(params, content) {
+        if (/^\s*#{1,6}(?:\s|$)/.test(content)) return "heading";
+        if (!/^\s*(?:[-*+]|\d+[.)])(?:\s|$)/.test(content)) return "paragraph";
+        const table = this.tableAt(params);
+        if (!table) return "item";
+        // 表の最初の行（最初の `---` より前）のセルが見出しセル
+        return table.separated ? "td" : "th";
+    }
+
+    /**
+     * カーソルの行が `{% table %}` の中にあるかを、先頭からの行を読んで調べる。
+     * 中にあれば、その表で区切り（`---`）を読んだかどうかを返す。外なら `null`。
+     */
+    tableAt({textDocument: {uri}, position: {line}}) {
+        const doc = this.services.Documents.get(uri);
+        if (!doc) return null;
+        const text = doc.getText({start: {line: 0, character: 0}, end: {line, character: 0}});
+        const tables = [];
+        let fence = null;
+        for (const row of text.split(/\r?\n/)) {
+            const marker = /^\s*(`{3,}|~{3,})/.exec(row)?.[1];
+            if (fence) {
+                if (marker && marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+                continue;
+            }
+            if (marker) {
+                fence = marker;
+                continue;
+            }
+            if (/^\s*\{%\s*table(?![\w-])(?:(?!%\}).)*(?<!\/)%\}/.test(row)) tables.push({separated: false});
+            else if (/^\s*\{%\s*\/table\s*%\}/.test(row)) tables.pop();
+            else if (tables.length > 0 && /^\s*---+\s*$/.test(row)) tables[tables.length - 1].separated = true;
+        }
+        return tables.length > 0 ? tables[tables.length - 1] : null;
     }
 
     /** 属性値の候補。`matches` に列挙された値と、Boolean 型の `true` / `false` を出す。 */
@@ -253,6 +342,34 @@ class MarkdocCompletionProvider extends Plugins.CompletionProvider {
         const text = doc?.getText({start: {line, character: 0}, end: {line: line + 1, character: 0}}) ?? "";
         return text.replace(/\r?\n$/, "");
     }
+}
+
+/**
+ * 入力済みの属性（`type="a" size=`）の名前の集合。
+ * 名前は属性の境界（先頭か空白の後）だけで読み、引用符の中の値は丸ごと読み飛ばす
+ * （`title="a b=c"` から `b` を属性名として拾わない）。
+ */
+function usedNames(written) {
+    const pattern = /(?<!\S)([\w-]+)(?:=(?:"(?:[^"\\]|\\.)*"|[^\s"%]*))?/g;
+    return new Set(Array.from(written.matchAll(pattern), ([, name]) => name));
+}
+
+/** 属性の定義から属性名の候補を作る。入力済みの属性は除き、必須の属性を先に並べる。 */
+function attributeItems(attributes, used) {
+    return Object.entries(attributes)
+        .filter(([name]) => !used.has(name))
+        .map(([name, attribute]) => ({
+            label: name,
+            kind: CompletionItemKind.Property,
+            detail: [typeName(attribute.type), attribute.required ? "required" : ""].filter(Boolean).join(", "),
+            documentation: attribute.description ?? "",
+            sortText: `${attribute.required ? 0 : 1}${name}`,
+            // 文字列は引用符の中にカーソルを置き、それ以外は値を直接書けるようにする
+            insertText: isStringAttribute(attribute) ? `${name}="$1"` : `${name}=$1`,
+            insertTextFormat: SNIPPET,
+            // 挿入後すぐに属性値の候補を出すよう、クライアント（MarkdocCompletionSupport）に知らせる
+            data: {triggerSuggest: true},
+        }));
 }
 
 /**

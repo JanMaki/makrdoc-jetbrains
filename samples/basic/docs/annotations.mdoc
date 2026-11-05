@@ -1,0 +1,40 @@
+---
+title: Annotations
+route: /docs/annotations
+---
+
+# 注釈の補完 {% id="annotations" %}
+
+各行の末尾にカーソルを置き、`{% ` を入力して補完を試す。
+
+- 見出しの後ろ: `## 見出し {% ` で `class`・`id` が出て、タグ名は出ない。
+
+## 見出し {% id="heading" %}
+
+- リスト項目の後ろ: `- 項目 {% ` や `1. 項目 {% ` で `class`・`id` が出る。
+
+- 項目 {% class="item" %}
+1. 番号付きの項目 {% id="numbered" %}
+
+段落の後ろ: `段落 {% ` では `class`・`id` に加えて、インラインのタグ名も出る。
+
+段落の文章 {% class="note" %}
+
+- 表のセルの後ろ: 最初の行（`---` より前）は見出しセルで、`align`・`colspan`・`rowspan`・`width` も出る。
+  2 行目以降のセルでは `width` が出ない。
+
+{% table %}
+* 名前 {% align="left" width=30 %}
+* 説明 {% colspan=2 %}
+---
+* `callout` {% class="code" %}
+* 強調するブロック {% align="center" %}
+{% /table %}
+
+- タグの属性にも `class`・`id` が加わる: `{% callout ` で `type`・`title` と並んで出る。
+
+{% callout type="note" id="tag-id" %}
+タグの共通属性。
+{% /callout %}
+
+<!-- 短縮記法（`.class`・`#id`）の補完には対応していない。`class="…"`・`id="…"` を使う。 -->
