@@ -1,0 +1,43 @@
+---
+title: Variables
+route: /docs/variables
+author:
+  name: Bob
+  links:
+    github: bob
+draft: false
+---
+
+# Variables
+
+Hello, {% $user.name %}. Version {% $version %}.
+
+## Highlighting
+
+Each reference below should be colored as a variable from `$` to the end, including subscripts.
+
+- Dotted path: {% $user.profile.email %}
+- Index subscript: {% $user.roles[0].label %}
+- String subscript: {% $user["profile"]["display-name"] %}
+- Mixed: {% $user.roles[0]["id"] %}
+- Frontmatter: {% $markdoc.frontmatter.author.links.github %}
+- Undefined (should be an error): {% $markdoc.frontmatter.missing %}
+- Function arguments: {% if equals($user.roles[0].id, "admin") %}Shown to admins.{% /if %}
+
+{% callout type="note" title=$user.roles[0].label %}
+The title of this callout is a variable with a subscript.
+{% /callout %}
+
+## Completion
+
+Try these on the empty line at the end of this file (completion does not run inside code like the examples here):
+
+- Type `{% $` to list variables: `user`, `flags`, `version`, `markdoc`, and `markdoc.frontmatter.*` for this page (`title`, `route`, `author`, `draft`).
+- Type `{% $user.` to list `name`, `profile`, `roles`; then `{% $user.roles[0].` to list `id`, `label`.
+- Type `{% $markdoc.` for `frontmatter`, then `{% $markdoc.frontmatter.author.` for `name`, `links`.
+- Type `{% callout title=$` to complete a variable as an attribute value.
+- Type `{% callout title=` to see function names (`uppercase`, `includes`, and the built-ins) after the enum values.
+- Type `{% if ` to see function names, and `{% if equals(` or `{% if equals($flags.beta, ` for argument completion.
+- Type `{% ` to see tag names first and function names below them; type `{% eq` to see only `equals`.
+- Inside a string, e.g. `{% callout title="$`, no variables are suggested.
+

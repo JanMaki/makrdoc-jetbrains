@@ -8,15 +8,13 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.util.CachedValueProvider
-import com.intellij.psi.util.CachedValuesManager
 
 /**
  * Markdoc ファイル（Markdown ファイルタイプ）の中のタグに色を付ける。
  *
- * Markdown の PSI はタグを知らないので、ファイル全体のテキストを [MarkdocTagScanner] で走査した結果を
- * キャッシュし、葉の要素ごとにその範囲に重なる部分だけを色付けする（注釈は要素の範囲内に収める必要がある）。
+ * Markdown の PSI はタグを知らないので、ファイル全体のテキストを [MarkdocTagScanner] で走査した結果
+ * （[MarkdocTagTokens] がキャッシュする）から、葉の要素ごとにその範囲に重なる部分だけを色付けする
+ * （注釈は要素の範囲内に収める必要がある）。
  */
 class MarkdocTagAnnotator : Annotator, DumbAware {
     /** 葉の要素 [element] の範囲に重なるタグのトークンに色を付ける。 */
@@ -28,8 +26,8 @@ class MarkdocTagAnnotator : Annotator, DumbAware {
         val virtualFile = file.virtualFile ?: return
         if (!MarkdocFiles.isMarkdoc(virtualFile)) return
 
-        val tokens = tokensOf(file)
-        var index = firstEndingAfter(tokens, range.startOffset)
+        val tokens = MarkdocTagTokens.of(file)
+        var index = MarkdocTagScanner.firstEndingAfter(tokens, range.startOffset)
         while (index < tokens.size) {
             val token = tokens[index++]
             if (token.start >= range.endOffset) break
@@ -40,22 +38,5 @@ class MarkdocTagAnnotator : Annotator, DumbAware {
                 .textAttributes(MarkdocHighlighterColors.of(token.kind))
                 .create()
         }
-    }
-
-    /** [file] 全体を走査したトークン。ファイルが変わるまでキャッシュする。 */
-    private fun tokensOf(file: PsiFile): List<MarkdocTagScanner.Token> =
-        CachedValuesManager.getCachedValue(file) {
-            CachedValueProvider.Result.create(MarkdocTagScanner.scan(file.viewProvider.contents), file)
-        }
-
-    /** 終わりが [offset] より後ろにある最初のトークンの位置（トークンは重ならず昇順に並ぶ）。 */
-    private fun firstEndingAfter(tokens: List<MarkdocTagScanner.Token>, offset: Int): Int {
-        var low = 0
-        var high = tokens.size
-        while (low < high) {
-            val mid = (low + high) ushr 1
-            if (tokens[mid].end <= offset) low = mid + 1 else high = mid
-        }
-        return low
     }
 }

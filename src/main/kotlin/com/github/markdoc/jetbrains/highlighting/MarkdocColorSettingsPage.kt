@@ -38,7 +38,7 @@ class MarkdocColorSettingsPage : ColorSettingsPage {
         Read this first.
         <d>{%</d> <t>/callout</t> <d>%}</d>
 
-        <d>{%</d> <t>if</t> <f>equals</f>(<v>${'$'}version</v>, <n>2</n>) <d>%}</d>
+        <d>{%</d> <t>if</t> <f>equals</f>(<v>${'$'}user.roles[</v><n>0</n><v>][</v><s>"id"</s><v>]</v>, <s>"admin"</s>) <d>%}</d>
         <d>{%</d> <t>partial</t> <a>file</a>=<s>"footer.mdoc"</s> <a>variables</a>={visible: <k>true</k>} <d>/%}</d>
         <d>{%</d> <t>/if</t> <d>%}</d>
     """.trimIndent()

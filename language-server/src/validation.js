@@ -1,25 +1,36 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const {Plugins} = require("@markdoc/language-server");
+const {frontmatterOf, withMarkdocVariables} = require("./variables");
 
 /**
- * partial の存在確認を、編集中の文書とディスク上のファイルで行う ValidationProvider。
+ * partial の存在確認と変数の検証を、編集中の文書に合わせて行う ValidationProvider。
  *
  * 上流は検証に使う `config.partials` を Scanner が持つ「保存済みファイルの partial 一覧」から作る。
  * Scanner は起動時のスキャンとファイル監視（動的登録が必要で、JetBrains では届かない）でしか更新されないため、
  * 起動後に書いた `{% partial %}` は常に「見つからない」と報告される。
+ *
+ * また上流は、スキーマに `variables` があるとすべての変数参照をそこから探すため、組み込みの
+ * `$markdoc.frontmatter.*` まで「Undefined variable」と報告する。
  */
 class MarkdocValidationProvider extends Plugins.ValidationProvider {
     /**
      * 上流の検証設定のうち `partials` を、編集中の文書にある `{% partial %}` ごとにディスク上の実ファイルで判定し直す。
      *
      * Scanner のキャッシュはファイル削除を検知できないことがあるため、キャッシュにあるかどうかでは判定しない。
+     * また `variables` に、組み込みの `$markdoc.frontmatter` として文書のフロントマターを加える。
      */
     configuration(uri) {
         const config = super.configuration(uri);
         const {Documents, Scanner} = this.services;
         const ast = Documents.ast(uri);
         if (!ast) return config;
+
+        // スキーマに variables がなければ上流は変数を検証しないので、そのままにする
+        // （加えると、設定にない変数がすべて未定義と報告されるようになる）
+        const variables = config.variables && typeof config.variables === "object"
+            ? withMarkdocVariables(config.variables, frontmatterOf(ast, Scanner))
+            : config.variables;
 
         const partials = {...config.partials};
         for (const node of ast.walk()) {
@@ -30,7 +41,7 @@ class MarkdocValidationProvider extends Plugins.ValidationProvider {
             if (relative && isFileInside(Scanner.path, relative)) partials[file] = true;
             else delete partials[file];
         }
-        return {...config, partials};
+        return {...config, partials, variables};
     }
 }
 
