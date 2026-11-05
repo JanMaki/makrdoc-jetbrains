@@ -92,12 +92,60 @@ class CommentSafeDocuments extends Services.Documents {
     }
 }
 
-/** フォーマットに使う Tokenizer で、コメントの規則を差し替えた FormattingProvider。 */
+/**
+ * フォーマットに使う Tokenizer でコメントの規則を差し替え、行の途中のコメントのあとで改行しないようにした
+ * FormattingProvider。
+ */
 class CommentSafeFormattingProvider extends Plugins.FormattingProvider {
     constructor(...args) {
         super(...args);
         patchCommentRules(this.tokenizer);
     }
+
+    /**
+     * Markdoc の `format` はコメントのあとに必ず改行を書くので、行の途中のコメントのあとで段落が切れてしまう。
+     * そこで行の途中のコメントは、いったん目印の文字列（テキスト）にしてから整形し、整形後に元のコメントに戻す。
+     * 行頭から始まるコメント（ブロックのコメント）は今までどおり整形する。
+     */
+    formatRange(doc, range) {
+        const comments = [];
+        const tokenizer = this.tokenizer;
+        const tokenize = tokenizer.tokenize;
+        tokenizer.tokenize = (content) => hideInlineComments(tokenize.call(tokenizer, content), comments);
+        try {
+            return super.formatRange(doc, range).map((edit) => ({
+                ...edit,
+                newText: edit.newText.replace(PLACEHOLDER, (_, index) => `${OPEN} ${comments[index]} ${CLOSE}`),
+            }));
+        } finally {
+            tokenizer.tokenize = tokenize;
+        }
+    }
+}
+
+/**
+ * 行の途中のコメントの目印。Markdoc の `format` がエスケープする文字（`*`、`_`、`~` など）を含まない、
+ * 私用領域の文字で番号を囲む。
+ */
+const PLACEHOLDER = /(\d+)/g;
+
+/**
+ * インラインのトークンの中のコメントを、目印のテキストに置き換える。
+ *
+ * @param tokens Markdoc の Tokenizer が返したトークン。
+ * @param comments 置き換えたコメントの中身を、目印の番号の順に追加する配列。
+ * @returns 置き換えた [tokens]。
+ */
+function hideInlineComments(tokens, comments) {
+    for (const token of tokens) {
+        for (const child of token.children ?? []) {
+            if (child.type !== "comment") continue;
+            comments.push(child.content);
+            child.type = "text";
+            child.content = `${comments.length - 1}`;
+        }
+    }
+    return tokens;
 }
 
 module.exports = {patchCommentRules, CommentSafeDocuments, CommentSafeFormattingProvider};
