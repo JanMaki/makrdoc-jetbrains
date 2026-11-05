@@ -108,14 +108,20 @@ class CommentSafeFormattingProvider extends Plugins.FormattingProvider {
      * 行頭から始まるコメント（ブロックのコメント）は今までどおり整形する。
      */
     formatRange(doc, range) {
-        const comments = [];
+        const hidden = {open: "", comments: []};
         const tokenizer = this.tokenizer;
         const tokenize = tokenizer.tokenize;
-        tokenizer.tokenize = (content) => hideInlineComments(tokenize.call(tokenizer, content), comments);
+        tokenizer.tokenize = (content) => hideInlineComments(tokenize.call(tokenizer, content), content, hidden);
         try {
-            return super.formatRange(doc, range).map((edit) => ({
+            const edits = super.formatRange(doc, range);
+            // 目印を作っていなければ、目印に似た文字列があってもそのまま残す
+            if (hidden.comments.length === 0) return edits;
+            // 目印の始まりは入力に現れない文字列なので、一致するのは作った目印だけ
+            const placeholder = new RegExp(`${hidden.open}(\\d+)${PLACEHOLDER_CLOSE}`, "g");
+            return edits.map((edit) => ({
                 ...edit,
-                newText: edit.newText.replace(PLACEHOLDER, (_, index) => `${OPEN} ${comments[index]} ${CLOSE}`),
+                newText: edit.newText.replace(placeholder, (text, index) =>
+                    index < hidden.comments.length ? `${OPEN} ${hidden.comments[index]} ${CLOSE}` : text),
             }));
         } finally {
             tokenizer.tokenize = tokenize;
@@ -124,25 +130,31 @@ class CommentSafeFormattingProvider extends Plugins.FormattingProvider {
 }
 
 /**
- * 行の途中のコメントの目印。Markdoc の `format` がエスケープする文字（`*`、`_`、`~` など）を含まない、
- * 私用領域の文字で番号を囲む。
+ * 行の途中のコメントの目印に使う文字。Markdoc の `format` がエスケープする文字（`*`、`_`、`~` など）を含まない、
+ * 私用領域の文字にする。目印は「始まり・番号・終わり」で、始まりは入力に現れない文字列にする。
  */
-const PLACEHOLDER = /(\d+)/g;
+const PLACEHOLDER_OPEN = String.fromCharCode(0xe000);
+const PLACEHOLDER_SEPARATOR = String.fromCharCode(0xe002);
+const PLACEHOLDER_CLOSE = String.fromCharCode(0xe001);
 
 /**
  * インラインのトークンの中のコメントを、目印のテキストに置き換える。
  *
  * @param tokens Markdoc の Tokenizer が返したトークン。
- * @param comments 置き換えたコメントの中身を、目印の番号の順に追加する配列。
+ * @param content トークンにした文字列。目印の始まりを、この中に現れない文字列にする。
+ * @param hidden 目印の始まり（`open`）と、置き換えたコメントの中身を目印の番号の順に入れる配列（`comments`）。
  * @returns 置き換えた [tokens]。
  */
-function hideInlineComments(tokens, comments) {
+function hideInlineComments(tokens, content, hidden) {
+    let n = 0;
+    while (content.includes(`${PLACEHOLDER_OPEN}${n}${PLACEHOLDER_SEPARATOR}`)) n++;
+    hidden.open = `${PLACEHOLDER_OPEN}${n}${PLACEHOLDER_SEPARATOR}`;
     for (const token of tokens) {
         for (const child of token.children ?? []) {
             if (child.type !== "comment") continue;
-            comments.push(child.content);
+            hidden.comments.push(child.content);
             child.type = "text";
-            child.content = `${comments.length - 1}`;
+            child.content = `${hidden.open}${hidden.comments.length - 1}${PLACEHOLDER_CLOSE}`;
         }
     }
     return tokens;
