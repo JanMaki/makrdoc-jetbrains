@@ -10,6 +10,7 @@ import javax.swing.Icon
 
 /** Settings | Editor | Color Scheme | Markdoc。タグの色を変更できるようにする。 */
 class MarkdocColorSettingsPage : ColorSettingsPage {
+    /** デモテキストのタグ名（`<d>…</d>` の `d`）と色の対応。 */
     private val tags = mapOf(
         "d" to MarkdocHighlighterColors.DELIMITER,
         "t" to MarkdocHighlighterColors.TAG_NAME,
@@ -19,6 +20,9 @@ class MarkdocColorSettingsPage : ColorSettingsPage {
         "k" to MarkdocHighlighterColors.KEYWORD,
         "v" to MarkdocHighlighterColors.VARIABLE,
         "f" to MarkdocHighlighterColors.FUNCTION,
+        "b" to MarkdocHighlighterColors.BRACKET,
+        "c" to MarkdocHighlighterColors.BRACE,
+        "o" to MarkdocHighlighterColors.KEY,
     )
 
     /** 設定画面に表示する言語名。 */
@@ -39,7 +43,8 @@ class MarkdocColorSettingsPage : ColorSettingsPage {
         <d>{%</d> <t>/callout</t> <d>%}</d>
 
         <d>{%</d> <t>if</t> <f>equals</f>(<v>${'$'}user.roles[</v><n>0</n><v>][</v><s>"id"</s><v>]</v>, <s>"admin"</s>) <d>%}</d>
-        <d>{%</d> <t>partial</t> <a>file</a>=<s>"footer.mdoc"</s> <a>variables</a>={visible: <k>true</k>} <d>/%}</d>
+        <d>{%</d> <t>partial</t> <a>file</a>=<s>"footer.mdoc"</s> <a>variables</a>=<c>{</c><o>visible</o>: <k>true</k><c>}</c> <d>/%}</d>
+        <d>{%</d> <t>map</t> <a>coordinates</a>=<b>[</b><n>1</n>, <n>4</n>, <n>9</n><b>]</b> <a>meta</a>=<c>{</c><o>id</o>: <s>"id_123"</s>, <o>"label"</o>: <s>"Home"</s><c>}</c> <d>/%}</d>
         <d>{%</d> <t>/if</t> <d>%}</d>
     """.trimIndent()
 
@@ -56,6 +61,9 @@ class MarkdocColorSettingsPage : ColorSettingsPage {
         AttributesDescriptor("Keyword (true, false, null)", MarkdocHighlighterColors.KEYWORD),
         AttributesDescriptor("Variable", MarkdocHighlighterColors.VARIABLE),
         AttributesDescriptor("Function", MarkdocHighlighterColors.FUNCTION),
+        AttributesDescriptor("Brackets", MarkdocHighlighterColors.BRACKET),
+        AttributesDescriptor("Braces", MarkdocHighlighterColors.BRACE),
+        AttributesDescriptor("Object key", MarkdocHighlighterColors.KEY),
     )
 
     /** 前景・背景以外の色設定（なし）。 */

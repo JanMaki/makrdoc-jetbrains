@@ -1,0 +1,50 @@
+---
+title: Collections
+---
+
+# Collections
+
+Brackets (`[ ]`, `{ }`) and object keys inside attribute values should each have their own color.
+The `}` of the closing `%}` should keep the delimiter color.
+
+## Arrays
+
+{% map coordinates=[1, 4, 9] /%}
+
+{% map coordinates=[-1.5, 0, 2.25] /%}
+
+{% map coordinates=[$user.roles[0].id, "fixed", true, null] /%}
+
+## Objects
+
+{% map meta={id: "id_123"} /%}
+
+{% map meta={"id": "id_123", "display-name": "Home"} /%}
+
+{% map meta={id: "plain key", visible: true, order: 2} /%}
+
+## Nested
+
+{% map meta={tags: ["a", "b"], position: {x: 1, y: 2}} /%}
+
+{% map coordinates=[1, 4, 9] meta={id: "id_123", owner: $user.name} /%}
+
+## Brace right before the closing delimiter
+
+{% map meta={a: {b: 1}}/%}
+
+{% map coordinates=[1, {x: 2}]/%}
+
+## Multi-line
+
+{% map
+   coordinates=[
+     1,
+     4,
+     9
+   ]
+   meta={
+     id: "id_123",
+     "label": "Home"
+   }
+/%}

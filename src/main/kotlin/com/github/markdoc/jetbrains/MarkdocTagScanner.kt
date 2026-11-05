@@ -10,7 +10,7 @@ import com.github.markdoc.jetbrains.MarkdocTagScanner.scan
  * 特定（[com.github.markdoc.jetbrains.paths.MarkdocPathValue]）で使う。
  *
  * 構文の検証はしない（言語サーバーが行う）。書きかけのタグでも、それらしい部分を切り出せればよい。
- * 色を付けない部分（`=`、括弧、区切りの `,` など）はトークンにしない。
+ * 色を付けない部分（`=`、丸括弧、区切りの `,` や `:` など）はトークンにしない。
  */
 object MarkdocTagScanner {
     /** トークンの種類。 */
@@ -21,10 +21,13 @@ object MarkdocTagScanner {
         /** タグの最初の語。閉じタグの `/` を含む（`/callout`）。 */
         TAG_NAME,
 
-        /** `=` が続く語と、短縮記法の `.class`・`#id`。 */
+        /** `=` が続く語と、短縮記法の `.class`・`#id`。オブジェクトのキー（`{id: 1}` の `id`）は [KEY] にする。 */
         ATTRIBUTE,
 
-        /** 引用符を含む文字列。閉じていなければ行末まで。変数の添字の中身（`$a["key"]` の `"key"`）を含む。 */
+        /**
+         * 引用符を含む文字列。閉じていなければ行末まで。変数の添字の中身（`$a["key"]` の `"key"`）を含む。
+         * オブジェクトのキーにした文字列（`{"id": 1}` の `"id"`）は [KEY] にする。
+         */
         STRING,
 
         /** 数値。変数の添字の中身（`$items[0]` の `0`）を含む。 */
@@ -41,6 +44,18 @@ object MarkdocTagScanner {
 
         /** `(` が続く語。 */
         FUNCTION,
+
+        /** 配列の角括弧 `[`、`]`。変数の添字の角括弧（`$items[0]` の `[`、`]`）は [VARIABLE] に含める。 */
+        BRACKET,
+
+        /** オブジェクトの波括弧 `{`、`}`。区切り（`{%`、`%}`、`/%}`）の波括弧は [DELIMITER] に含める。 */
+        BRACE,
+
+        /**
+         * オブジェクトのキー。直後に `:` が続く語か文字列（`{id: 1}` の `id`、`{"id": 1}` の `"id"`）。
+         * Markdoc はキーと `:` の間に空白を認めないので、`{id : 1}` の `id` はキーにしない。
+         */
+        KEY,
     }
 
     /** [start] から [end] の手前までが [kind] の部分。 */
@@ -334,7 +349,12 @@ object MarkdocTagScanner {
         return if (spaces in 1..4 && !text.isBlank(i, end)) marker + spaces else marker + 1
     }
 
-    /** [open] の `{%` から始まるタグを走査し、タグの直後の位置を返す。`%}` がなければテキストの末尾まで読む。 */
+    /**
+     * [open] の `{%` から始まるタグを走査し、タグの直後の位置を返す。`%}` がなければテキストの末尾まで読む。
+     *
+     * 区切り（`%}`、`/%}`、次のタグの `{%`）は括弧より先に判定する。そのため `{a: {b: 1}}/%}` の `}` のうち、
+     * 区切りの一部になるのは `/%}` の `}` だけで、残りは [Kind.BRACE] になる。
+     */
     private fun scanTag(text: CharSequence, open: Int, tokens: MutableList<Token>): Int {
         tokens += Token(open, open + 2, Kind.DELIMITER)
         var i = open + 2
@@ -367,7 +387,9 @@ object MarkdocTagScanner {
 
                 c == '"' -> {
                     i = skipString(text, i)
-                    tokens += Token(start, i, Kind.STRING)
+                    // キーと `:` の間に空白は置けない（Markdoc の文法）
+                    val kind = if (text.at(i) == ':') Kind.KEY else Kind.STRING
+                    tokens += Token(start, i, kind)
                 }
 
                 c == '$' && isIdentStart(text.at(i + 1)) -> i = scanVariable(text, i, tokens)
@@ -385,16 +407,22 @@ object MarkdocTagScanner {
                 isIdentStart(c) -> {
                     i = skipIdent(text, i)
                     val word = text.subSequence(start, i).toString()
-                    val kind = when (text.at(skipSpaces(text, i))) {
-                        '=' -> Kind.ATTRIBUTE
-                        '(' -> Kind.FUNCTION
-                        else -> when {
-                            word in KEYWORDS -> Kind.KEYWORD
-                            first -> Kind.TAG_NAME
-                            else -> null
-                        }
+                    // `=` と `(` の前には空白を置けるが、キーと `:` の間には置けない（Markdoc の文法）
+                    val next = text.at(skipSpaces(text, i))
+                    val kind = when {
+                        text.at(i) == ':' -> Kind.KEY
+                        next == '=' -> Kind.ATTRIBUTE
+                        next == '(' -> Kind.FUNCTION
+                        word in KEYWORDS -> Kind.KEYWORD
+                        first -> Kind.TAG_NAME
+                        else -> null
                     }
                     if (kind != null) tokens += Token(start, i, kind)
+                }
+                // 配列とオブジェクトの括弧（区切りの `{`、`}` は上で読み終えている）
+                c == '[' || c == ']' || c == '{' || c == '}' -> {
+                    i++
+                    tokens += Token(start, i, if (c == '[' || c == ']') Kind.BRACKET else Kind.BRACE)
                 }
 
                 else -> i++

@@ -10,6 +10,7 @@ import com.intellij.openapi.editor.DefaultLanguageHighlighterColors as Default
  * 既定の色はテーマの標準の色から引き継ぐ。`MARKUP_TAG`、`MARKUP_ATTRIBUTE`、`FUNCTION_CALL` は多くのテーマで
  * 地の文とほぼ同じ色になり区別がつかないため、使わない。`GLOBAL_VARIABLE` も Islands Dark や IntelliJ Light では
  * 定義がなく地の文と同じ色になるため、変数にはグローバル変数によく使われる見た目（紫の斜体）の `STATIC_FIELD` を使う。
+ * オブジェクトのキーは、JSON のキーと同じく `INSTANCE_FIELD` を使う（属性名と同じ色になる）。
  */
 object MarkdocHighlighterColors {
     val DELIMITER = key("MARKDOC_DELIMITER", Default.METADATA)
@@ -20,6 +21,9 @@ object MarkdocHighlighterColors {
     val KEYWORD = key("MARKDOC_KEYWORD", Default.KEYWORD)
     val VARIABLE = key("MARKDOC_VARIABLE", Default.STATIC_FIELD)
     val FUNCTION = key("MARKDOC_FUNCTION", Default.FUNCTION_DECLARATION)
+    val BRACKET = key("MARKDOC_BRACKET", Default.BRACKETS)
+    val BRACE = key("MARKDOC_BRACE", Default.BRACES)
+    val KEY = key("MARKDOC_KEY", Default.INSTANCE_FIELD)
 
     /** [kind] のトークンに付ける色。 */
     fun of(kind: Kind): TextAttributesKey = when (kind) {
@@ -31,6 +35,9 @@ object MarkdocHighlighterColors {
         Kind.KEYWORD -> KEYWORD
         Kind.VARIABLE -> VARIABLE
         Kind.FUNCTION -> FUNCTION
+        Kind.BRACKET -> BRACKET
+        Kind.BRACE -> BRACE
+        Kind.KEY -> KEY
     }
 
     /** [name] の色キーを、既定の色を [fallback] から継承して作る。 */
