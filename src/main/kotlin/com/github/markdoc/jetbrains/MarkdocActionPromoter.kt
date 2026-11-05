@@ -18,6 +18,7 @@ import com.intellij.openapi.actionSystem.IdeActions
  * 後のものほど優先されるため、`order="last"` で登録して「宣言へ移動」を先頭に戻す。
  */
 class MarkdocActionPromoter : ActionPromoter {
+    /** カーソルが移動できるファイルパスの上にあれば「宣言へ移動」だけを返す。それ以外は並びを変えない（空を返す）。 */
     override fun promote(actions: List<AnAction>, context: DataContext): List<AnAction> {
         val editor = context.getData(CommonDataKeys.EDITOR) ?: return emptyList()
         val project = context.getData(CommonDataKeys.PROJECT) ?: return emptyList()

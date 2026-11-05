@@ -19,6 +19,7 @@ import com.intellij.psi.util.CachedValuesManager
  * キャッシュし、葉の要素ごとにその範囲に重なる部分だけを色付けする（注釈は要素の範囲内に収める必要がある）。
  */
 class MarkdocTagAnnotator : Annotator, DumbAware {
+    /** 葉の要素 [element] の範囲に重なるタグのトークンに色を付ける。 */
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {
         if (element.firstChild != null) return
         val range = element.textRange ?: return
@@ -41,6 +42,7 @@ class MarkdocTagAnnotator : Annotator, DumbAware {
         }
     }
 
+    /** [file] 全体を走査したトークン。ファイルが変わるまでキャッシュする。 */
     private fun tokensOf(file: PsiFile): List<MarkdocTagScanner.Token> =
         CachedValuesManager.getCachedValue(file) {
             CachedValueProvider.Result.create(MarkdocTagScanner.scan(file.viewProvider.contents), file)

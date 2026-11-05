@@ -45,6 +45,7 @@ class MarkdocTypedHandler : TypedHandlerDelegate() {
         return Result.STOP
     }
 
+    /** このファイルが Markdoc ファイルかどうか。 */
     private fun PsiFile.isMarkdoc(): Boolean = virtualFile?.let(MarkdocFiles::isMarkdoc) == true
 
     /** [offset] がある行の、行頭から [offset] までの文字列。 */

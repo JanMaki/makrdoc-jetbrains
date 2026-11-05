@@ -21,12 +21,16 @@ class MarkdocColorSettingsPage : ColorSettingsPage {
         "f" to MarkdocHighlighterColors.FUNCTION,
     )
 
+    /** 設定画面に表示する言語名。 */
     override fun getDisplayName(): String = "Markdoc"
 
+    /** 設定画面のアイコン（なし）。 */
     override fun getIcon(): Icon? = null
 
+    /** プレビューの下地のハイライター。タグの色はタグ付きのデモテキストで付ける。 */
     override fun getHighlighter(): SyntaxHighlighter = PlainSyntaxHighlighter()
 
+    /** プレビューに表示するテキスト。`<name>` の部分に対応する色が付く。 */
     override fun getDemoText(): String = """
         # Getting started
 
@@ -39,8 +43,10 @@ class MarkdocColorSettingsPage : ColorSettingsPage {
         <d>{%</d> <t>/if</t> <d>%}</d>
     """.trimIndent()
 
+    /** デモテキストのタグ名と色の対応。 */
     override fun getAdditionalHighlightingTagToDescriptorMap(): Map<String, TextAttributesKey> = tags
 
+    /** 設定画面で変更できる色の一覧。 */
     override fun getAttributeDescriptors(): Array<AttributesDescriptor> = arrayOf(
         AttributesDescriptor("Tag delimiter", MarkdocHighlighterColors.DELIMITER),
         AttributesDescriptor("Tag name", MarkdocHighlighterColors.TAG_NAME),
@@ -52,5 +58,6 @@ class MarkdocColorSettingsPage : ColorSettingsPage {
         AttributesDescriptor("Function", MarkdocHighlighterColors.FUNCTION),
     )
 
+    /** 前景・背景以外の色設定（なし）。 */
     override fun getColorDescriptors(): Array<ColorDescriptor> = ColorDescriptor.EMPTY_ARRAY
 }

@@ -17,6 +17,7 @@ import com.intellij.util.PlatformIcons
  * `partial` の `file` では Markdoc ファイルとディレクトリだけを出す。
  */
 class MarkdocPathCompletionContributor : CompletionContributor() {
+    /** カーソルがファイルパスの属性値の中にあれば、入力済みのディレクトリにあるファイルとディレクトリを候補に出す。 */
     override fun fillCompletionVariants(parameters: CompletionParameters, result: CompletionResultSet) {
         val psiFile = parameters.originalFile
         val file = psiFile.virtualFile ?: return
@@ -44,6 +45,7 @@ class MarkdocPathCompletionContributor : CompletionContributor() {
         paths.stopHere()
     }
 
+    /** [child] の補完候補。ディレクトリは末尾に `/` を付ける。 */
     private fun lookupElement(child: VirtualFile): LookupElementBuilder =
         if (child.isDirectory) {
             LookupElementBuilder.create(child, child.name)

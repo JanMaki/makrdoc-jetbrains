@@ -20,6 +20,7 @@ object MarkdocHighlighterColors {
     val VARIABLE = key("MARKDOC_VARIABLE", Default.GLOBAL_VARIABLE)
     val FUNCTION = key("MARKDOC_FUNCTION", Default.FUNCTION_DECLARATION)
 
+    /** [kind] のトークンに付ける色。 */
     fun of(kind: Kind): TextAttributesKey = when (kind) {
         Kind.DELIMITER -> DELIMITER
         Kind.TAG_NAME -> TAG_NAME
@@ -31,6 +32,7 @@ object MarkdocHighlighterColors {
         Kind.FUNCTION -> FUNCTION
     }
 
+    /** [name] の色キーを、既定の色を [fallback] から継承して作る。 */
     private fun key(name: String, fallback: TextAttributesKey) =
         TextAttributesKey.createTextAttributesKey(name, fallback)
 }

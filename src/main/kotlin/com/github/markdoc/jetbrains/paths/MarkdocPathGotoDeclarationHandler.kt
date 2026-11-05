@@ -12,6 +12,7 @@ import com.intellij.psi.PsiManager
  * ほかの言語のパスと同じく区切りごとに移動先が変わり、`partials/footer.mdoc` の `partials` の上ではディレクトリへ移動する。
  */
 class MarkdocPathGotoDeclarationHandler : GotoDeclarationHandler {
+    /** [offset] がファイルパスの属性値の中なら、そのパスが指すファイルをジャンプ先として返す。 */
     override fun getGotoDeclarationTargets(sourceElement: PsiElement?, offset: Int, editor: Editor): Array<PsiElement>? {
         val psiFile = sourceElement?.containingFile ?: return null
         val file = psiFile.virtualFile ?: return null
