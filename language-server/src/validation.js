@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const path = require("node:path");
 const { Plugins } = require("@markdoc/language-server");
 
 /**
@@ -20,15 +21,33 @@ class MarkdocValidationProvider extends Plugins.ValidationProvider {
       if (node.type !== "tag" || node.tag !== "partial") continue;
       const file = node.attributes?.file;
       if (typeof file !== "string" || !file || partials[file]) continue;
-      if (Scanner.has(file) || isFile(Scanner.fullPath(file))) partials[file] = true;
+      const relative = toContentRelative(file);
+      if (!relative) continue;
+      if (Scanner.has(relative) || isFileInside(Scanner.path, relative)) partials[file] = true;
     }
     return { ...config, partials };
   }
 }
 
-function isFile(path) {
+/**
+ * `file` をコンテンツルートからの相対パスにする。IDE の補完・ジャンプと同じく先頭の `/` はコンテンツルートを指す。
+ * UNC パスやドライブ付きの絶対パスはコンテンツルートの外を指すので `null` を返す。
+ */
+function toContentRelative(file) {
+  if (/^[\\/]{2}/.test(file)) return null;
+  const relative = file.replace(/^[\\/]/, "");
+  if (!relative || path.isAbsolute(relative) || path.win32.isAbsolute(relative)) return null;
+  return relative;
+}
+
+/** `root` 基準の `relative` が、シンボリックリンクを解決した後も `root` の内側にある通常ファイルかどうか。 */
+function isFileInside(root, relative) {
   try {
-    return fs.statSync(path).isFile();
+    const realRoot = fs.realpathSync(root);
+    const realTarget = fs.realpathSync(path.resolve(root, relative));
+    const inner = path.relative(realRoot, realTarget);
+    if (!inner || inner === ".." || inner.startsWith(`..${path.sep}`) || path.isAbsolute(inner)) return false;
+    return fs.statSync(realTarget).isFile();
   } catch {
     return false;
   }
