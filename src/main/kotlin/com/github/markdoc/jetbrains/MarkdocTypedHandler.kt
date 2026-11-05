@@ -13,7 +13,7 @@ import com.intellij.psi.PsiFile
  * - `/` か `"` を入力したら補完を開く。ファイルパスの属性値なら、その階層の候補が出る
  *   （[com.github.markdoc.jetbrains.paths.MarkdocPathCompletionContributor]）
  *
- * どちらも同じ行の中だけを見る。
+ * どちらも同じ行の中だけを見る。コード（インラインコードとフェンスコードブロックの中身）の中では何もしない。
  */
 class MarkdocTypedHandler : TypedHandlerDelegate() {
     /** 入力した文字はまだ文書に入っていないので、カーソルより前がそのまま入力位置より前になる。 */
@@ -22,7 +22,7 @@ class MarkdocTypedHandler : TypedHandlerDelegate() {
         if (!file.isMarkdoc()) return Result.CONTINUE
 
         val caret = editor.caretModel.offset
-        if (tagContent(editor.lineTextBefore(caret)) != null) {
+        if (tagContent(editor.lineTextBefore(caret)) != null && !editor.isInCode(caret)) {
             AutoPopupController.getInstance(project).scheduleAutoPopup(editor)
         }
         return Result.CONTINUE
@@ -39,6 +39,7 @@ class MarkdocTypedHandler : TypedHandlerDelegate() {
         val before = editor.lineTextBefore(caret - 1)
         val after = document.charsSequence.substring(caret, lineEnd)
         if (!shouldCloseTag(before, after)) return Result.CONTINUE
+        if (editor.isInCode(caret)) return Result.CONTINUE
 
         document.insertString(caret, "%}")
         editor.caretModel.moveToOffset(caret + 2)
@@ -47,6 +48,9 @@ class MarkdocTypedHandler : TypedHandlerDelegate() {
 
     /** このファイルが Markdoc ファイルかどうか。 */
     private fun PsiFile.isMarkdoc(): Boolean = virtualFile?.let(MarkdocFiles::isMarkdoc) == true
+
+    /** [offset] がコードの中かどうか。 */
+    private fun Editor.isInCode(offset: Int): Boolean = MarkdocTagScanner.isInCode(document.charsSequence, offset)
 
     /** [offset] がある行の、行頭から [offset] までの文字列。 */
     private fun Editor.lineTextBefore(offset: Int): String {

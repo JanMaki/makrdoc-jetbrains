@@ -43,20 +43,32 @@ object MarkdocTagScanner {
     /**
      * [text] 内のタグを先頭から走査し、トークンを返す。トークンは重ならず、出現順に並ぶ。
      *
-     * Markdoc と同じく、インラインコード（`` `{% tag %}` ``）の中のタグは除く。フェンスコードブロックの中の
-     * タグは、情報文字列に `{% process=false %}` がなければ処理する（Markdoc の既定）。
-     *
-     * フェンスは Markdoc（markdown-it）と同じく、コンテナ（リスト項目の内容）から 3 桁までの字下げだけを認める。
-     * コンテナはリスト項目だけを近似的に追跡する。
+     * Markdoc と同じく、インラインコードの中のタグは除き、フェンスコードブロックの中のタグは情報文字列に
+     * `{% process=false %}` がなければ処理する。フェンスはコンテナ（リスト項目の内容。近似的に追跡する）から
+     * 3 桁までの字下げだけを認める。
      */
-    fun scan(text: CharSequence): List<Token> {
+    fun scan(text: CharSequence): List<Token> = scan(text, null)
+
+    /**
+     * [text] の [offset] がインラインコードかフェンスコードブロックの中身かどうか。
+     * フェンスは `process=false` の有無を問わず、開きフェンスの行は含めない。
+     */
+    fun isInCode(text: CharSequence, offset: Int): Boolean {
+        val code = ArrayList<IntRange>()
+        scan(text, code)
+        return code.any { offset in it }
+    }
+
+    /** [scan] の本体。[code] があれば、コードの中身の範囲（カーソルが置ける位置、両端を含む）を加える。 */
+    private fun scan(text: CharSequence, code: MutableList<IntRange>?): List<Token> {
         val tokens = ArrayList<Token>()
-        // 直前のタグが行をまたいで読み進めた位置。次の範囲はここより前から読まない
+        // 読み終えた位置（タグは行をまたぐことがある）
         var i = 0
-        // インラインコードを探す範囲（段落など）の先頭。空行とフェンスで区切る
+        // インラインコードを探す範囲の先頭（空行とフェンスで区切る）
         var inlineStart = 0
         var fence: Fence? = null
-        // 開いているリスト項目の内容の字下げ幅（外側から順に）。フェンスの字下げはいちばん内側からの幅で測る
+        var bodyStart = 0
+        // 開いているリスト項目の内容の字下げ幅（外側から順に）
         val lists = ArrayList<Int>()
         var previousBlank = false
         var lineStart = 0
@@ -67,17 +79,19 @@ object MarkdocTagScanner {
             if (open != null) {
                 if (!open.isEndedBy(text, lineStart, lineEnd)) {
                     if (open.isClosedBy(text, lineStart, lineEnd)) {
+                        code?.add(bodyStart until lineStart)
                         fence = null
                         inlineStart = next
                         previousBlank = false
                     } else if (open.process) {
-                        // フェンスの中はコードなので、バッククォートはインラインコードにならない
+                        // フェンスの中ではバッククォートはインラインコードにならない
                         i = scanRange(text, maxOf(i, lineStart), next, tokens, codeSpans = false)
                     }
                     lineStart = next
                     continue
                 }
-                // フェンスを含むリスト項目が終わったので、フェンスも閉じずに終わる。この行は通常の行として読む
+                // リスト項目が終わり、フェンスも閉じずに終わった。この行は通常の行として読む
+                code?.add(bodyStart until lineStart)
                 fence = null
                 inlineStart = lineStart
                 previousBlank = false
@@ -87,39 +101,52 @@ object MarkdocTagScanner {
             if (!blank) {
                 val (width, pos) = indentOf(text, lineStart, lineEnd)
                 val listContent = listContentIndent(text, pos, lineEnd, width)
-                // 字下げの浅い行は、空行の後か新しいブロックの始まりならリスト項目を終える（そうでなければ遅延継続行）
+                // 浅い行は、空行の後かブロックの始まりならリスト項目を終える（それ以外は遅延継続行）
                 val startsBlock = listContent != null || Fence.markerLength(text, pos, lineEnd) >= 3
                 while (lists.isNotEmpty() && width < lists.last() && (previousBlank || startsBlock)) lists.removeAt(lists.size - 1)
                 val container = lists.lastOrNull() ?: 0
-                // Markdoc（markdown-it）では、コンテナから 4 桁以上字下げした行はフェンスもリストも始めない
+                // コンテナから 4 桁以上字下げした行はフェンスもリストも始めない（markdown-it）
                 if (width - container < 4) {
                     opened = Fence.openedAt(text, pos, lineEnd, container)
                     if (opened == null && listContent != null) lists += listContent
                 }
             }
             if (opened != null || blank) {
-                i = scanRange(text, maxOf(i, inlineStart), lineStart, tokens, codeSpans = true)
+                i = scanRange(text, maxOf(i, inlineStart), lineStart, tokens, codeSpans = true, code)
                 inlineStart = next
             }
             if (opened != null) {
                 fence = opened
+                bodyStart = next
                 // 情報文字列の `{% process=false %}` などを色付けする
                 i = scanRange(text, maxOf(i, lineStart), next, tokens, codeSpans = false)
             }
             previousBlank = blank
             lineStart = next
         }
-        if (fence == null) scanRange(text, maxOf(i, inlineStart), text.length, tokens, codeSpans = true)
+        if (fence == null) {
+            scanRange(text, maxOf(i, inlineStart), text.length, tokens, codeSpans = true, code)
+        } else if (bodyStart < text.length || text.endsWith('\n')) {
+            // 閉じていないフェンスは末尾まで続く（開きフェンスが最終行なら中身なし）
+            code?.add(bodyStart..text.length)
+        }
         return tokens
     }
 
     /**
-     * [from] から [to] の手前までにあるタグを走査し、最後に読んだ位置を返す（タグが [to] を越えて続けば [to] より後ろ）。
+     * [from] から [to] の手前までのタグを走査し、読み終えた位置を返す（タグが続けば [to] を越える）。
      *
-     * [codeSpans] が真なら、インラインコードを読み飛ばす。Markdoc のインライン規則と同じく先に始まった方を優先するため、
-     * タグの中のバッククォートはインラインコードにならず、インラインコードの中の `{%` はタグにならない。
+     * [codeSpans] が真ならインラインコードを読み飛ばし、[code] にその中身を加える。タグとインラインコードは
+     * 先に始まった方を優先する（Markdoc と同じ）。
      */
-    private fun scanRange(text: CharSequence, from: Int, to: Int, tokens: MutableList<Token>, codeSpans: Boolean): Int {
+    private fun scanRange(
+        text: CharSequence,
+        from: Int,
+        to: Int,
+        tokens: MutableList<Token>,
+        codeSpans: Boolean,
+        code: MutableList<IntRange>? = null,
+    ): Int {
         var i = from
         while (i < to) {
             val c = text[i]
@@ -128,7 +155,7 @@ object MarkdocTagScanner {
                 !codeSpans -> i + 1
                 // エスケープしたバッククォートはインラインコードを始めない
                 c == '\\' && text.at(i + 1) == '`' -> i + 2
-                c == '`' -> skipCodeSpan(text, i, to)
+                c == '`' -> skipCodeSpan(text, i, to, code)
                 else -> i + 1
             }
         }
@@ -136,10 +163,10 @@ object MarkdocTagScanner {
     }
 
     /**
-     * [open] から始まるバッククォートの並びが開くインラインコードを読み飛ばし、その直後の位置を返す。
-     * [to] より前に同じ長さの並びがなければインラインコードではないので、並びの直後を返す。
+     * [open] のバッククォートの並びが開くインラインコードを読み飛ばし、直後の位置を返す。
+     * [to] までに同じ長さの並びがなければ、開きの並びの直後を返す。[code] には中身（両端を含む）を加える。
      */
-    private fun skipCodeSpan(text: CharSequence, open: Int, to: Int): Int {
+    private fun skipCodeSpan(text: CharSequence, open: Int, to: Int, code: MutableList<IntRange>?): Int {
         val length = run(text, open, to, '`')
         var i = open + length
         while (i < to) {
@@ -148,7 +175,10 @@ object MarkdocTagScanner {
                 continue
             }
             val run = run(text, i, to, '`')
-            if (run == length) return i + run
+            if (run == length) {
+                code?.add(open + length..i)
+                return i + run
+            }
             i += run
         }
         return open + length
@@ -168,19 +198,18 @@ object MarkdocTagScanner {
      * 開いているフェンスコードブロック。
      *
      * @property marker フェンスの文字（`` ` `` か `~`）。
-     * @property length 開きフェンスの文字数。閉じフェンスはこれ以上の長さが必要。
-     * @property container フェンスを含むリスト項目の内容の字下げ幅（リストの外なら 0）。
-     * @property process 中のタグを処理するかどうか（`{% process=false %}` がなければ真）。
+     * @property length 開きフェンスの文字数（閉じフェンスはこれ以上）。
+     * @property container 含むリスト項目の内容の字下げ幅（リストの外なら 0）。
+     * @property process 中のタグを処理するかどうか。
      */
     private class Fence(val marker: Char, val length: Int, val container: Int, val process: Boolean) {
-        /** [start] から [end] の手前までの行が、フェンスを含むリスト項目を終える（フェンスが閉じずに終わる）かどうか。 */
+        /** [start] から [end] の手前までの行がリスト項目を終え、フェンスを閉じずに終えるかどうか。 */
         fun isEndedBy(text: CharSequence, start: Int, end: Int): Boolean =
             !text.isBlank(start, end) && indentOf(text, start, end).first < container
 
-        /** [start] から [end] の手前までの行がこのフェンスを閉じるかどうか。 */
+        /** [start] から [end] の手前までの行がこのフェンスを閉じるかどうか。字下げはコンテナから 3 桁まで。 */
         fun isClosedBy(text: CharSequence, start: Int, end: Int): Boolean {
             val (width, i) = indentOf(text, start, end)
-            // コンテナから 4 桁以上字下げした閉じフェンスは認めない
             if (width - container >= 4) return false
             val run = run(text, i, end, marker)
             return run >= length && text.isBlank(i + run, end)
@@ -193,10 +222,7 @@ object MarkdocTagScanner {
                 return run(text, from, end, marker)
             }
 
-            /**
-             * 字下げの直後の [from] から [end] の手前までがフェンスを開くなら、そのフェンスを返す。
-             * 字下げがコンテナ（[container]）から 3 桁以内かどうかは呼び出し側で確かめる。
-             */
+            /** 字下げの直後の [from] からの行がフェンスを開くなら返す。字下げの幅は呼び出し側で確かめる。 */
             fun openedAt(text: CharSequence, from: Int, end: Int, container: Int): Fence? {
                 val length = markerLength(text, from, end)
                 if (length < 3) return null
@@ -207,10 +233,7 @@ object MarkdocTagScanner {
                 return Fence(marker, length, container, process = !isProcessFalse(info))
             }
 
-            /**
-             * 情報文字列 [info] のタグに `process=false` の属性があるかどうか。
-             * タグとして読むので、文字列の中の `process=false` は数えず、文字列の中の `%` でタグが途切れることもない。
-             */
+            /** 情報文字列 [info] のタグに `process=false` があるかどうか。引用符の中は数えない。 */
             private fun isProcessFalse(info: CharSequence): Boolean {
                 val tokens = ArrayList<Token>()
                 scanRange(info, 0, info.length, tokens, codeSpans = false)
@@ -240,8 +263,8 @@ object MarkdocTagScanner {
     }
 
     /**
-     * 字下げの直後の [from] がリストの印（`-`、`*`、`+`、`1.`、`1)`）なら、その項目の内容の字下げ幅を返す。
-     * [width] は印の前の字下げの幅。印の後の空白が 5 桁以上か、内容がなければ、印の 1 桁後を内容の始まりとする。
+     * 字下げ（幅 [width]）の直後の [from] がリストの印（`-`、`*`、`+`、`1.`、`1)`）なら、内容の字下げ幅を返す。
+     * 印の後の空白が 5 桁以上か内容がなければ、印の 1 桁後を内容の始まりとする。
      */
     private fun listContentIndent(text: CharSequence, from: Int, end: Int, width: Int): Int? {
         var i = from

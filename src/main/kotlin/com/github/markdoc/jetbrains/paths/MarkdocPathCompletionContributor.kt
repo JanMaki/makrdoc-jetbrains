@@ -1,6 +1,7 @@
 package com.github.markdoc.jetbrains.paths
 
 import com.github.markdoc.jetbrains.MarkdocFiles
+import com.github.markdoc.jetbrains.MarkdocTagScanner
 import com.intellij.codeInsight.AutoPopupController
 import com.intellij.codeInsight.completion.CompletionContributor
 import com.intellij.codeInsight.completion.CompletionParameters
@@ -24,7 +25,9 @@ class MarkdocPathCompletionContributor : CompletionContributor() {
         if (!MarkdocFiles.isMarkdoc(file)) return
 
         val offset = parameters.offset
-        val value = MarkdocPathValue.at(parameters.editor.document.charsSequence, offset) ?: return
+        val text = parameters.editor.document.charsSequence
+        if (MarkdocTagScanner.isInCode(text, offset)) return
+        val value = MarkdocPathValue.at(text, offset) ?: return
         val typed = value.text.substring(0, offset - value.start)
         val slash = typed.lastIndexOf('/')
         val prefix = typed.substring(slash + 1)
