@@ -25,6 +25,12 @@
         <!-- タグの色分け。Markdown ファイルのうち Markdoc ファイルだけを対象にする -->
         <annotator language="Markdown"
                    implementationClass="com.github.markdoc.jetbrains.highlighting.MarkdocTagAnnotator"/>
+        <!-- タグの中の `$a["key"]` などを Markdown が参照リンクとして扱うため、その色（フィルター）と
+             インスペクションの警告（サプレッサー）をタグの中だけ除く -->
+        <daemon.highlightInfoFilter
+                implementation="com.github.markdoc.jetbrains.highlighting.MarkdocTagHighlightFilter"/>
+        <lang.inspectionSuppressor language="Markdown"
+                                   implementationClass="com.github.markdoc.jetbrains.highlighting.MarkdocTagInspectionSuppressor"/>
         <colorSettingsPage implementation="com.github.markdoc.jetbrains.highlighting.MarkdocColorSettingsPage"/>
         <!-- Markdoc ファイルの Ctrl+B を、Markdown の太字の切り替えより「宣言へ移動」を優先させる -->
         <actionPromoter implementation="com.github.markdoc.jetbrains.MarkdocActionPromoter" order="last"/>

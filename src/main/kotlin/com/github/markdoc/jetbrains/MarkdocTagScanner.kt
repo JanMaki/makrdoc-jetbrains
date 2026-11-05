@@ -24,14 +24,19 @@ object MarkdocTagScanner {
         /** `=` が続く語と、短縮記法の `.class`・`#id`。 */
         ATTRIBUTE,
 
-        /** 引用符を含む文字列。閉じていなければ行末まで。 */
+        /** 引用符を含む文字列。閉じていなければ行末まで。変数の添字の中身（`$a["key"]` の `"key"`）を含む。 */
         STRING,
+
+        /** 数値。変数の添字の中身（`$items[0]` の `0`）を含む。 */
         NUMBER,
 
         /** `true`、`false`、`null`。 */
         KEYWORD,
 
-        /** `$` から始まる変数参照（`$page.title`）。 */
+        /**
+         * `$` から始まる変数参照（`$page.title`、`$items[0].name`）。添字の中身は [STRING] か [NUMBER] として分けるため、
+         * 添字を含む変数は複数のトークンになる（`$items[`、`0`、`].name`）。
+         */
         VARIABLE,
 
         /** `(` が続く語。 */
@@ -60,6 +65,48 @@ object MarkdocTagScanner {
         val code = ArrayList<IntRange>()
         scan(text, code)
         return code.any { offset in it }
+    }
+
+    /**
+     * [text] を走査した [tokens]（[scan] の結果）で、[start] から [end] の手前までが 1 つのタグの中に収まるかどうか。
+     *
+     * タグは開きの区切り（`{%`）から、次の閉じの区切り（`%}` か `/%}`）の終わりまで。閉じていないタグは、
+     * 次の `{%` の手前にある最後のトークンの終わりまでとする。
+     */
+    fun isInTag(text: CharSequence, tokens: List<Token>, start: Int, end: Int): Boolean {
+        // 区切りは `{%`、`%}`、`/%}` で、`{` から始まるのは開きの区切りだけ
+        fun Token.isOpening() = kind == Kind.DELIMITER && text[this.start] == '{'
+
+        // [start] 以前に始まる最後のトークンから戻り、直前に開いたタグを探す
+        var index = firstEndingAfter(tokens, start)
+        if (index == tokens.size || tokens[index].start > start) index--
+        while (index >= 0 && !tokens[index].isOpening()) {
+            // 先に閉じの区切りが見つかれば、範囲はタグの外から始まっている
+            if (tokens[index].kind == Kind.DELIMITER && tokens[index].end <= start) return false
+            index--
+        }
+        if (index < 0) return false
+
+        // タグの終わりを探す
+        var tagEnd = tokens[index].end
+        for (i in index + 1 until tokens.size) {
+            val token = tokens[i]
+            if (token.isOpening()) break
+            tagEnd = token.end
+            if (token.kind == Kind.DELIMITER) break
+        }
+        return end <= tagEnd
+    }
+
+    /** 終わりが [offset] より後ろにある最初のトークンの位置。なければ `tokens.size`（トークンは重ならず昇順に並ぶ）。 */
+    fun firstEndingAfter(tokens: List<Token>, offset: Int): Int {
+        var low = 0
+        var high = tokens.size
+        while (low < high) {
+            val mid = (low + high) ushr 1
+            if (tokens[mid].end <= offset) low = mid + 1 else high = mid
+        }
+        return low
     }
 
     /** [scan] の本体。[code] があれば、コードの中身の範囲（カーソルが置ける位置、両端を含む）を加える。 */
@@ -323,14 +370,10 @@ object MarkdocTagScanner {
                     tokens += Token(start, i, Kind.STRING)
                 }
 
-                c == '$' && isIdentStart(text.at(i + 1)) -> {
-                    i = skipVariable(text, i + 1)
-                    tokens += Token(start, i, Kind.VARIABLE)
-                }
+                c == '$' && isIdentStart(text.at(i + 1)) -> i = scanVariable(text, i, tokens)
 
                 c.isDigit() || (c == '-' && text.at(i + 1).isDigit()) -> {
-                    i++
-                    while (i < text.length && (text[i].isDigit() || text[i] == '.')) i++
+                    i = skipNumber(text, i)
                     tokens += Token(start, i, Kind.NUMBER)
                 }
                 // 属性の短縮記法（`.class`、`#id`）
@@ -361,7 +404,7 @@ object MarkdocTagScanner {
         return i
     }
 
-    /** [index] の文字。範囲外なら ` `。 */
+    /** [index] の文字。範囲外なら `\u0000`（どの判定にも当てはまらない文字）。 */
     private fun CharSequence.at(index: Int): Char = if (index < length) this[index] else '\u0000'
 
     /** 識別子の先頭に置ける文字かどうか。 */
@@ -377,10 +420,57 @@ object MarkdocTagScanner {
         return i
     }
 
-    /** `$page.title` や `$items[0]` のような変数参照を読み飛ばす。 */
-    private fun skipVariable(text: CharSequence, from: Int): Int {
-        var i = from
-        while (i < text.length && (isIdentPart(text[i]) || text[i] == '.')) i++
+    /**
+     * [start] の `$` から始まる変数参照（`$page.title`、`$items[0]`、`$a["key"]`）を走査してトークンを加え、
+     * その直後の位置を返す。
+     *
+     * `.` の後の名前と、数値か文字列を書いた添字（`[0]`、`["key"]`）を続けて読む。入力中の `$a.` は `.` まで含める。
+     * 閉じていない添字（`$items[0`）は変数に含めない。
+     *
+     * 添字の中身は [Kind.NUMBER] か [Kind.STRING]、それ以外（`$`、名前、`.`、`[`、`]`）は [Kind.VARIABLE] にする。
+     * `$a["key"].b` は `$a[`、`"key"`、`].b` の 3 つのトークンになる。
+     */
+    private fun scanVariable(text: CharSequence, start: Int, tokens: MutableList<Token>): Int {
+        // 変数の色にする部分の先頭（添字の中身の後で `]` から始め直す）
+        var segment = start
+        var i = skipIdent(text, start + 1)
+        loop@ while (i < text.length) {
+            when (text[i]) {
+                '.' -> i = skipIdent(text, i + 1)
+                '[' -> {
+                    val (kind, valueEnd) = subscriptAt(text, i) ?: break@loop
+                    tokens += Token(segment, i + 1, Kind.VARIABLE)
+                    tokens += Token(i + 1, valueEnd, kind)
+                    segment = valueEnd
+                    i = valueEnd + 1
+                }
+
+                else -> break@loop
+            }
+        }
+        tokens += Token(segment, i, Kind.VARIABLE)
+        return i
+    }
+
+    /**
+     * [open] の `[` から始まる添字（`[0]`、`[-1]`、`["key"]`）の中身の種類と、中身の終わり（`]` の位置）を返す。
+     * 中身が数値か文字列でないか、直後に `]` がなければ `null`。
+     */
+    private fun subscriptAt(text: CharSequence, open: Int): Pair<Kind, Int>? {
+        val c = text.at(open + 1)
+        val (kind, end) = when {
+            // 閉じていない文字列は行末かテキストの末尾で止まるので、続く `]` の確認で除かれる
+            c == '"' -> Kind.STRING to skipString(text, open + 1)
+            c.isDigit() || (c == '-' && text.at(open + 2).isDigit()) -> Kind.NUMBER to skipNumber(text, open + 1)
+            else -> return null
+        }
+        return if (text.at(end) == ']') kind to end else null
+    }
+
+    /** [from] から始まる数値（`-` と小数点を含む）を読み飛ばし、その直後の位置を返す。 */
+    private fun skipNumber(text: CharSequence, from: Int): Int {
+        var i = from + 1
+        while (i < text.length && (text[i].isDigit() || text[i] == '.')) i++
         return i
     }
 
