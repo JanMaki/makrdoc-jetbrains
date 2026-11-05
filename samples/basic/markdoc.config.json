@@ -9,6 +9,9 @@
     },
     "routing": {
       "frontmatter": "route"
+    },
+    "markdoc": {
+      "allowComments": true
     }
   }
 ]

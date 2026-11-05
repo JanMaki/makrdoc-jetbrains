@@ -11,6 +11,7 @@ import com.intellij.openapi.editor.DefaultLanguageHighlighterColors as Default
  * 地の文とほぼ同じ色になり区別がつかないため、使わない。`GLOBAL_VARIABLE` も Islands Dark や IntelliJ Light では
  * 定義がなく地の文と同じ色になるため、変数にはグローバル変数によく使われる見た目（紫の斜体）の `STATIC_FIELD` を使う。
  * オブジェクトのキーは、JSON のキーと同じく `INSTANCE_FIELD` を使う（属性名と同じ色になる）。
+ * コメント（`allowComments` が有効なときだけ付ける）は `BLOCK_COMMENT` を使う。
  */
 object MarkdocHighlighterColors {
     val DELIMITER = key("MARKDOC_DELIMITER", Default.METADATA)
@@ -24,6 +25,7 @@ object MarkdocHighlighterColors {
     val BRACKET = key("MARKDOC_BRACKET", Default.BRACKETS)
     val BRACE = key("MARKDOC_BRACE", Default.BRACES)
     val KEY = key("MARKDOC_KEY", Default.INSTANCE_FIELD)
+    val COMMENT = key("MARKDOC_COMMENT", Default.BLOCK_COMMENT)
 
     /** [kind] のトークンに付ける色。 */
     fun of(kind: Kind): TextAttributesKey = when (kind) {
@@ -38,6 +40,7 @@ object MarkdocHighlighterColors {
         Kind.BRACKET -> BRACKET
         Kind.BRACE -> BRACE
         Kind.KEY -> KEY
+        Kind.COMMENT -> COMMENT
     }
 
     /** [name] の色キーを、既定の色を [fallback] から継承して作る。 */

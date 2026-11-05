@@ -11,6 +11,19 @@ import com.github.markdoc.jetbrains.MarkdocTagScanner.scan
  *
  * 構文の検証はしない（言語サーバーが行う）。書きかけのタグでも、それらしい部分を切り出せればよい。
  * 色を付けない部分（`=`、丸括弧、区切りの `,` や `:` など）はトークンにしない。
+ *
+ * ## コメント
+ *
+ * 設定で Markdoc の `allowComments` を有効にしていれば、`<!-- … -->` をコメントとして扱う（[scan] の
+ * `allowComments`）。コメントの中のタグはトークンにせず、コメント全体を 1 つの [Kind.COMMENT] のトークンにする。
+ * 範囲は Markdoc のコメントの規則に合わせる。
+ *
+ * - ブロックのコメント：行（字下げとリストの印の後）が `<!--` で始まれば、空行をまたいで最初の `-->` まで。
+ *   Markdoc は `-->` と同じ行の残りを捨てるので、残りにタグがあってもトークンにしない
+ * - インラインのコメント：行の途中の `<!--` から、同じ段落（空行かフェンスまで）の中の最初の `-->` まで
+ * - 閉じていない `<!--` はコメントにしない（Markdoc 0.5 と同じ。同梱サーバーの Markdoc 0.3 は扱いが違うが、
+ *   `language-server/src/comments.js` で 0.5 と同じ扱いに差し替えている）
+ * - フェンスコードブロックとインラインコードの中、`\<!--` はコメントにしない
  */
 object MarkdocTagScanner {
     /** トークンの種類。 */
@@ -56,6 +69,12 @@ object MarkdocTagScanner {
          * Markdoc はキーと `:` の間に空白を認めないので、`{id : 1}` の `id` はキーにしない。
          */
         KEY,
+
+        /**
+         * コメント（`<!-- … -->`）全体。タグの中には現れない。コメントを有効にして走査したときだけ作る。
+         * Markdown の色分けは複数行のコメントをコメントの色にしないため、このトークンで色を付ける。
+         */
+        COMMENT,
     }
 
     /** [start] から [end] の手前までが [kind] の部分。 */
@@ -63,14 +82,23 @@ object MarkdocTagScanner {
 
     private val KEYWORDS = setOf("true", "false", "null")
 
+    /** コメントの開き。 */
+    private const val COMMENT_OPEN = "<!--"
+
+    /** コメントの閉じ。 */
+    private const val COMMENT_CLOSE = "-->"
+
     /**
      * [text] 内のタグを先頭から走査し、トークンを返す。トークンは重ならず、出現順に並ぶ。
      *
      * Markdoc と同じく、インラインコードの中のタグは除き、フェンスコードブロックの中のタグは情報文字列に
      * `{% process=false %}` がなければ処理する。フェンスはコンテナ（リスト項目の内容。近似的に追跡する）から
      * 3 桁までの字下げだけを認める。
+     *
+     * @param allowComments 真なら `<!-- … -->` をコメントとして扱い、中のタグを除いてコメントのトークンを加える
+     *   （クラスの説明の「コメント」を参照）。
      */
-    fun scan(text: CharSequence): List<Token> = scan(text, null)
+    fun scan(text: CharSequence, allowComments: Boolean = false): List<Token> = scan(text, null, allowComments)
 
     /**
      * [text] の [offset] がインラインコードかフェンスコードブロックの中身かどうか。
@@ -78,7 +106,7 @@ object MarkdocTagScanner {
      */
     fun isInCode(text: CharSequence, offset: Int): Boolean {
         val code = ArrayList<IntRange>()
-        scan(text, code)
+        scan(text, code, allowComments = false)
         return code.any { offset in it }
     }
 
@@ -86,7 +114,7 @@ object MarkdocTagScanner {
      * [text] を走査した [tokens]（[scan] の結果）で、[start] から [end] の手前までが 1 つのタグの中に収まるかどうか。
      *
      * タグは開きの区切り（`{%`）から、次の閉じの区切り（`%}` か `/%}`）の終わりまで。閉じていないタグは、
-     * 次の `{%` の手前にある最後のトークンの終わりまでとする。
+     * 次の `{%` かコメントの手前にある最後のトークンの終わりまでとする。
      */
     fun isInTag(text: CharSequence, tokens: List<Token>, start: Int, end: Int): Boolean {
         // 区切りは `{%`、`%}`、`/%}` で、`{` から始まるのは開きの区切りだけ
@@ -96,8 +124,9 @@ object MarkdocTagScanner {
         var index = firstEndingAfter(tokens, start)
         if (index == tokens.size || tokens[index].start > start) index--
         while (index >= 0 && !tokens[index].isOpening()) {
-            // 先に閉じの区切りが見つかれば、範囲はタグの外から始まっている
-            if (tokens[index].kind == Kind.DELIMITER && tokens[index].end <= start) return false
+            // 先に閉じの区切りかコメントが見つかれば、範囲はタグの外から始まっている（コメントはタグの外にしかない）
+            val kind = tokens[index].kind
+            if (kind == Kind.COMMENT || (kind == Kind.DELIMITER && tokens[index].end <= start)) return false
             index--
         }
         if (index < 0) return false
@@ -106,7 +135,7 @@ object MarkdocTagScanner {
         var tagEnd = tokens[index].end
         for (i in index + 1 until tokens.size) {
             val token = tokens[i]
-            if (token.isOpening()) break
+            if (token.isOpening() || token.kind == Kind.COMMENT) break
             tagEnd = token.end
             if (token.kind == Kind.DELIMITER) break
         }
@@ -124,8 +153,11 @@ object MarkdocTagScanner {
         return low
     }
 
-    /** [scan] の本体。[code] があれば、コードの中身の範囲（カーソルが置ける位置、両端を含む）を加える。 */
-    private fun scan(text: CharSequence, code: MutableList<IntRange>?): List<Token> {
+    /**
+     * [scan] の本体。[code] があれば、コードの中身の範囲（カーソルが置ける位置、両端を含む）を加える。
+     * [allowComments] が真なら、コメントの中を読み飛ばしてコメントのトークンを加える。
+     */
+    private fun scan(text: CharSequence, code: MutableList<IntRange>?, allowComments: Boolean): List<Token> {
         val tokens = ArrayList<Token>()
         // 読み終えた位置（タグは行をまたぐことがある）
         var i = 0
@@ -163,11 +195,14 @@ object MarkdocTagScanner {
             }
             val blank = text.isBlank(lineStart, lineEnd)
             var opened: Fence? = null
+            // 行の内容の先頭（字下げとリストの印の後）。空行なら null
+            var contentStart: Int? = null
             if (!blank) {
                 val (width, pos) = indentOf(text, lineStart, lineEnd)
-                val listContent = listContentIndent(text, pos, lineEnd, width)
+                val listMarker = ListMarker.at(text, pos, lineEnd, width)
+                contentStart = listMarker?.contentStart ?: pos
                 // 浅い行は、空行の後かブロックの始まりならリスト項目を終える（それ以外は遅延継続行）
-                val startsBlock = listContent != null || Fence.markerLength(text, pos, lineEnd) >= 3
+                val startsBlock = listMarker != null || Fence.markerLength(text, pos, lineEnd) >= 3
                 while (lists.isNotEmpty() && width < lists.last() && (previousBlank || startsBlock)) lists.removeAt(
                     lists.size - 1
                 )
@@ -175,11 +210,30 @@ object MarkdocTagScanner {
                 // コンテナから 4 桁以上字下げした行はフェンスもリストも始めない（markdown-it）
                 if (width - container < 4) {
                     opened = Fence.openedAt(text, pos, lineEnd, container)
-                    if (opened == null && listContent != null) lists += listContent
+                    if (opened == null && listMarker != null) lists += listMarker.contentIndent
+                }
+            }
+            // ブロックのコメント。Markdoc の規則は字下げの深さを問わず、段落の途中でも始まる
+            if (allowComments && opened == null && contentStart != null) {
+                val commentEnd = findCommentEnd(text, contentStart, text.length)
+                if (commentEnd >= 0) {
+                    // コメントは段落を終えるので、ここまでの段落を先に走査する
+                    i = scanRange(text, maxOf(i, inlineStart), lineStart, tokens, codeSpans = true, code, comments = true)
+                    // 前の行から続くタグが `<!--` まで読んでいれば、コメントではない
+                    if (i <= contentStart) {
+                        tokens += Token(contentStart, commentEnd, Kind.COMMENT)
+                        // Markdoc は `-->` と同じ行の残りを捨てるので、次の行から読む
+                        val resume = nextLineStart(text, commentEnd)
+                        i = resume
+                        inlineStart = resume
+                        previousBlank = false
+                        lineStart = resume
+                        continue
+                    }
                 }
             }
             if (opened != null || blank) {
-                i = scanRange(text, maxOf(i, inlineStart), lineStart, tokens, codeSpans = true, code)
+                i = scanRange(text, maxOf(i, inlineStart), lineStart, tokens, codeSpans = true, code, allowComments)
                 inlineStart = next
             }
             if (opened != null) {
@@ -192,7 +246,7 @@ object MarkdocTagScanner {
             lineStart = next
         }
         if (fence == null) {
-            scanRange(text, maxOf(i, inlineStart), text.length, tokens, codeSpans = true, code)
+            scanRange(text, maxOf(i, inlineStart), text.length, tokens, codeSpans = true, code, allowComments)
         } else if (bodyStart < text.length || text.endsWith('\n')) {
             // 閉じていないフェンスは末尾まで続く（開きフェンスが最終行なら中身なし）
             code?.add(bodyStart..text.length)
@@ -203,8 +257,9 @@ object MarkdocTagScanner {
     /**
      * [from] から [to] の手前までのタグを走査し、読み終えた位置を返す（タグが続けば [to] を越える）。
      *
-     * [codeSpans] が真ならインラインコードを読み飛ばし、[code] にその中身を加える。タグとインラインコードは
-     * 先に始まった方を優先する（Markdoc と同じ）。
+     * [codeSpans] が真ならインラインコードを読み飛ばし、[code] にその中身を加える。さらに [comments] が真なら
+     * インラインのコメントを読み飛ばし、コメントのトークンを加える。タグとインラインコードとコメントは、
+     * 先に始まったものを優先する（Markdoc と同じ）。
      */
     private fun scanRange(
         text: CharSequence,
@@ -213,6 +268,7 @@ object MarkdocTagScanner {
         tokens: MutableList<Token>,
         codeSpans: Boolean,
         code: MutableList<IntRange>? = null,
+        comments: Boolean = false,
     ): Int {
         var i = from
         while (i < to) {
@@ -220,9 +276,10 @@ object MarkdocTagScanner {
             i = when {
                 c == '{' && text.at(i + 1) == '%' -> scanTag(text, i, tokens)
                 !codeSpans -> i + 1
-                // エスケープしたバッククォートはインラインコードを始めない
-                c == '\\' && text.at(i + 1) == '`' -> i + 2
+                // エスケープしたバッククォートと `<` は、インラインコードとコメントを始めない
+                c == '\\' && (text.at(i + 1) == '`' || text.at(i + 1) == '<') -> i + 2
                 c == '`' -> skipCodeSpan(text, i, to, code)
+                comments && c == '<' -> skipComment(text, i, to, tokens)
                 else -> i + 1
             }
         }
@@ -250,6 +307,35 @@ object MarkdocTagScanner {
         }
         return open + length
     }
+
+    /**
+     * [open] から始まるインラインのコメントを読み飛ばし、直後の位置を返す。[tokens] にはコメントのトークンを加える。
+     * [open] が `<!--` でないか、[to] までに閉じていなければコメントにせず、[open] の次の位置を返す。
+     */
+    private fun skipComment(text: CharSequence, open: Int, to: Int, tokens: MutableList<Token>): Int {
+        val end = findCommentEnd(text, open, to)
+        if (end < 0) return open + 1
+        tokens += Token(open, end, Kind.COMMENT)
+        return end
+    }
+
+    /**
+     * [open] から `<!--` で始まるコメントの終わり（`-->` の直後）を返す。`<!--` でないか、[to] までに `-->` が
+     * なければ -1。Markdoc と同じく `<!--` の中から探すので、`<!-->` と `<!--->` もコメントになる。
+     */
+    private fun findCommentEnd(text: CharSequence, open: Int, to: Int): Int {
+        if (!text.startsWith(COMMENT_OPEN, open)) return -1
+        var i = open + 2
+        while (i + COMMENT_CLOSE.length <= to) {
+            if (text.startsWith(COMMENT_CLOSE, i)) return i + COMMENT_CLOSE.length
+            i++
+        }
+        return -1
+    }
+
+    /** [from] を含む行の次の行の先頭。最終行ならテキストの末尾。 */
+    private fun nextLineStart(text: CharSequence, from: Int): Int =
+        text.indexOf('\n', from).let { if (it < 0) text.length else it + 1 }
 
     /** [from] から [to] の手前までで、先頭から続く [marker] の数。 */
     private fun run(text: CharSequence, from: Int, to: Int, marker: Char): Int {
@@ -330,23 +416,34 @@ object MarkdocTagScanner {
     }
 
     /**
-     * 字下げ（幅 [width]）の直後の [from] がリストの印（`-`、`*`、`+`、`1.`、`1)`）なら、内容の字下げ幅を返す。
-     * 印の後の空白が 5 桁以上か内容がなければ、印の 1 桁後を内容の始まりとする。
+     * 行頭のリストの印（`-`、`*`、`+`、`1.`、`1)`）。
+     *
+     * @property contentIndent 項目の内容の字下げ幅。続く行がこれ以上字下げしていれば項目の内容になる。
+     * @property contentStart 印の後の空白の直後の位置（その行の内容の先頭）。
      */
-    private fun listContentIndent(text: CharSequence, from: Int, end: Int, width: Int): Int? {
-        var i = from
-        val c = text.at(i)
-        if (c == '-' || c == '*' || c == '+') {
-            i++
-        } else {
-            while (i < end && i - from < 9 && text[i].isDigit()) i++
-            if (i == from || (text.at(i) != '.' && text.at(i) != ')')) return null
-            i++
+    private class ListMarker(val contentIndent: Int, val contentStart: Int) {
+        companion object {
+            /**
+             * 字下げ（幅 [width]）の直後の [from] がリストの印なら返す。[end] は行末。
+             * 印の後の空白が 5 桁以上か内容がなければ、印の 1 桁後を内容の字下げ幅とする。
+             */
+            fun at(text: CharSequence, from: Int, end: Int, width: Int): ListMarker? {
+                var i = from
+                val c = text.at(i)
+                if (c == '-' || c == '*' || c == '+') {
+                    i++
+                } else {
+                    while (i < end && i - from < 9 && text[i].isDigit()) i++
+                    if (i == from || (text.at(i) != '.' && text.at(i) != ')')) return null
+                    i++
+                }
+                if (i < end && text[i] != ' ' && text[i] != '\t') return null
+                val marker = width + (i - from)
+                val (spaces, content) = indentOf(text, i, end)
+                val indent = if (spaces in 1..4 && !text.isBlank(i, end)) marker + spaces else marker + 1
+                return ListMarker(indent, content)
+            }
         }
-        if (i < end && text[i] != ' ' && text[i] != '\t') return null
-        val marker = width + (i - from)
-        val (spaces, _) = indentOf(text, i, end)
-        return if (spaces in 1..4 && !text.isBlank(i, end)) marker + spaces else marker + 1
     }
 
     /**

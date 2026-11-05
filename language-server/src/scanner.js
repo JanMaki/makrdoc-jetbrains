@@ -1,5 +1,6 @@
 const path = require("node:path");
 const {Services} = require("@markdoc/language-server");
+const {patchCommentRules} = require("./comments");
 
 /**
  * パスの表記を vscode-uri の `fsPath` に合わせた Scanner。
@@ -15,6 +16,8 @@ class FsPathScanner extends Services.Scanner {
     constructor(config) {
         super(config);
         this.path = lowerDriveLetter(this.path);
+        // TODO: Markdoc を更新して comments.js を消すときに、この呼び出しも消す
+        patchCommentRules(this.tokenizer);
     }
 
     /** 基準パスからの相対パスを、タグに書かれる値と同じ `/` 区切りで返す。 */
