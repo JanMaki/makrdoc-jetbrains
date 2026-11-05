@@ -344,9 +344,14 @@ class MarkdocCompletionProvider extends Plugins.CompletionProvider {
     }
 }
 
-/** 入力済みの属性（`type="a" size=`）の名前の集合。 */
+/**
+ * 入力済みの属性（`type="a" size=`）の名前の集合。
+ * 名前は属性の境界（先頭か空白の後）だけで読み、引用符の中の値は丸ごと読み飛ばす
+ * （`title="a b=c"` から `b` を属性名として拾わない）。
+ */
 function usedNames(written) {
-    return new Set(Array.from(written.matchAll(/([\w-]+)=?/g), ([, name]) => name));
+    const pattern = /(?<!\S)([\w-]+)(?:=(?:"(?:[^"\\]|\\.)*"|[^\s"%]*))?/g;
+    return new Set(Array.from(written.matchAll(pattern), ([, name]) => name));
 }
 
 /** 属性の定義から属性名の候補を作る。入力済みの属性は除き、必須の属性を先に並べる。 */
