@@ -124,10 +124,11 @@ object MarkdocConfigReader {
      *
      * VFS の内容は前回の IDE の終了時のまま残り、起動直後（サーバーを起動する時点）にはまだ更新されていないことがある。
      * そのまま読むと、IDE を閉じている間に書き換えた設定がサーバーに渡らない。ローカルのファイルでなければ VFS から読む。
+     * 文字コードは VFS から読むときと同じく、ファイルの文字コード（[VirtualFile.getCharset]）で解釈する。
      */
     private fun loadText(file: VirtualFile): String =
         try {
-            Files.readString(file.toNioPath())
+            String(Files.readAllBytes(file.toNioPath()), file.charset)
         } catch (_: UnsupportedOperationException) {
             // ローカルのファイルシステムにない（toNioPath が使えない）
             VfsUtilCore.loadText(file)
