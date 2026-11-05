@@ -23,7 +23,11 @@ private val LOG = logger<MarkdocLspIntegrationProvider>()
  * - 設定ファイルがないか、正しく読める
  */
 class MarkdocLspIntegrationProvider : LspIntegrationProvider {
-    override fun fileOpened(project: Project, file: VirtualFile, clientStarter: LspIntegrationProvider.LspClientStarter) {
+    override fun fileOpened(
+        project: Project,
+        file: VirtualFile,
+        clientStarter: LspIntegrationProvider.LspClientStarter
+    ) {
         if (!MarkdocFiles.isMarkdoc(file)) return
 
         // サーバーはスキーマ読み込み時にプロジェクトの JS を実行するため、信頼されていないプロジェクトでは起動しない

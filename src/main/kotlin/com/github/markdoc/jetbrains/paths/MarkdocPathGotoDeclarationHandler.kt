@@ -13,7 +13,11 @@ import com.intellij.psi.PsiManager
  */
 class MarkdocPathGotoDeclarationHandler : GotoDeclarationHandler {
     /** [offset] がファイルパスの属性値の中なら、そのパスが指すファイルをジャンプ先として返す。 */
-    override fun getGotoDeclarationTargets(sourceElement: PsiElement?, offset: Int, editor: Editor): Array<PsiElement>? {
+    override fun getGotoDeclarationTargets(
+        sourceElement: PsiElement?,
+        offset: Int,
+        editor: Editor
+    ): Array<PsiElement>? {
         val psiFile = sourceElement?.containingFile ?: return null
         val file = psiFile.virtualFile ?: return null
         if (!MarkdocFiles.isMarkdoc(file)) return null

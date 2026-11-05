@@ -20,7 +20,7 @@ import org.eclipse.lsp4j.CompletionItem
 class MarkdocCompletionSupport : LspCompletionSupport() {
     override fun shouldRunCodeCompletion(parameters: CompletionParameters): Boolean =
         !MarkdocTagScanner.isInCode(parameters.editor.document.charsSequence, parameters.offset) &&
-            super.shouldRunCodeCompletion(parameters)
+                super.shouldRunCodeCompletion(parameters)
 
     override fun createLookupElement(parameters: CompletionParameters, item: CompletionItem): LookupElement? {
         val element = super.createLookupElement(parameters, item) ?: return null

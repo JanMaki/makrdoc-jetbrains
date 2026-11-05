@@ -2,12 +2,7 @@ package com.github.markdoc.jetbrains
 
 import com.github.markdoc.jetbrains.paths.MarkdocPathResolver
 import com.github.markdoc.jetbrains.paths.MarkdocPathValue
-import com.intellij.openapi.actionSystem.ActionManager
-import com.intellij.openapi.actionSystem.ActionPromoter
-import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.actionSystem.DataContext
-import com.intellij.openapi.actionSystem.IdeActions
+import com.intellij.openapi.actionSystem.*
 
 /**
  * Markdoc ファイルで、移動できるファイルパスの上にカーソルがあるときだけ、Ctrl+B を「太字の切り替え」ではなく

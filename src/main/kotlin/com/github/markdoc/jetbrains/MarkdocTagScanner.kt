@@ -1,5 +1,8 @@
 package com.github.markdoc.jetbrains
 
+import com.github.markdoc.jetbrains.MarkdocTagScanner.scan
+
+
 /**
  * テキストから Markdoc のタグ（`{% … %}`）を探し、タグの中を種類ごとのトークンに切り分ける。
  *
@@ -103,7 +106,9 @@ object MarkdocTagScanner {
                 val listContent = listContentIndent(text, pos, lineEnd, width)
                 // 浅い行は、空行の後かブロックの始まりならリスト項目を終える（それ以外は遅延継続行）
                 val startsBlock = listContent != null || Fence.markerLength(text, pos, lineEnd) >= 3
-                while (lists.isNotEmpty() && width < lists.last() && (previousBlank || startsBlock)) lists.removeAt(lists.size - 1)
+                while (lists.isNotEmpty() && width < lists.last() && (previousBlank || startsBlock)) lists.removeAt(
+                    lists.size - 1
+                )
                 val container = lists.lastOrNull() ?: 0
                 // コンテナから 4 桁以上字下げした行はフェンスもリストも始めない（markdown-it）
                 if (width - container < 4) {
@@ -241,7 +246,7 @@ object MarkdocTagScanner {
                 // `=` はトークンにならないので、属性名の次のトークンが値
                 return tokens.zipWithNext().any { (name, value) ->
                     name.kind == Kind.ATTRIBUTE && name.text() == "process" &&
-                        value.kind == Kind.KEYWORD && value.text() == "false"
+                            value.kind == Kind.KEYWORD && value.text() == "false"
                 }
             }
         }
@@ -296,10 +301,12 @@ object MarkdocTagScanner {
                     i++
                     continue
                 }
+
                 c == '%' && text.at(i + 1) == '}' -> {
                     tokens += Token(i, i + 2, Kind.DELIMITER)
                     return i + 2
                 }
+
                 c == '/' && text.at(i + 1) == '%' && text.at(i + 2) == '}' -> {
                     tokens += Token(i, i + 3, Kind.DELIMITER)
                     return i + 3
@@ -310,14 +317,17 @@ object MarkdocTagScanner {
                     i = skipIdent(text, i + 1)
                     tokens += Token(start, i, Kind.TAG_NAME)
                 }
+
                 c == '"' -> {
                     i = skipString(text, i)
                     tokens += Token(start, i, Kind.STRING)
                 }
+
                 c == '$' && isIdentStart(text.at(i + 1)) -> {
                     i = skipVariable(text, i + 1)
                     tokens += Token(start, i, Kind.VARIABLE)
                 }
+
                 c.isDigit() || (c == '-' && text.at(i + 1).isDigit()) -> {
                     i++
                     while (i < text.length && (text[i].isDigit() || text[i] == '.')) i++
@@ -328,6 +338,7 @@ object MarkdocTagScanner {
                     i = skipIdent(text, i + 1)
                     tokens += Token(start, i, Kind.ATTRIBUTE)
                 }
+
                 isIdentStart(c) -> {
                     i = skipIdent(text, i)
                     val word = text.subSequence(start, i).toString()
@@ -342,6 +353,7 @@ object MarkdocTagScanner {
                     }
                     if (kind != null) tokens += Token(start, i, kind)
                 }
+
                 else -> i++
             }
             first = false

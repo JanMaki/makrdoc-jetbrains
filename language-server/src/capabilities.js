@@ -1,4 +1,4 @@
-const { defaultCapabilities } = require("@markdoc/language-server");
+const {defaultCapabilities} = require("@markdoc/language-server");
 
 /**
  * 補完ポップアップを自動で開く文字。
@@ -15,19 +15,19 @@ const TRIGGER_CHARACTERS = ["%", " ", "=", '"'];
  * そのため、上流が動的に登録するのと同じ機能を静的にも宣言する。
  */
 const capabilities = {
-  ...defaultCapabilities,
-  executeCommandProvider: { commands: [] },
-  codeActionProvider: { resolveProvider: true },
-  completionProvider: { resolveProvider: true, triggerCharacters: TRIGGER_CHARACTERS },
-  definitionProvider: true,
-  referencesProvider: true,
-  foldingRangeProvider: true,
-  documentFormattingProvider: true,
-  documentRangeFormattingProvider: true,
-  documentLinkProvider: {},
-  linkedEditingRangeProvider: true,
-  selectionRangeProvider: true,
-  documentSymbolProvider: true,
+    ...defaultCapabilities,
+    executeCommandProvider: {commands: []},
+    codeActionProvider: {resolveProvider: true},
+    completionProvider: {resolveProvider: true, triggerCharacters: TRIGGER_CHARACTERS},
+    definitionProvider: true,
+    referencesProvider: true,
+    foldingRangeProvider: true,
+    documentFormattingProvider: true,
+    documentRangeFormattingProvider: true,
+    documentLinkProvider: {},
+    linkedEditingRangeProvider: true,
+    selectionRangeProvider: true,
+    documentSymbolProvider: true,
 };
 
-module.exports = { capabilities };
+module.exports = {capabilities};

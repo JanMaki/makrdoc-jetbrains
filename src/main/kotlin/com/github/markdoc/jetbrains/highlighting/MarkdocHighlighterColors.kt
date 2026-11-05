@@ -1,8 +1,8 @@
 package com.github.markdoc.jetbrains.highlighting
 
 import com.github.markdoc.jetbrains.MarkdocTagScanner.Kind
-import com.intellij.openapi.editor.DefaultLanguageHighlighterColors as Default
 import com.intellij.openapi.editor.colors.TextAttributesKey
+import com.intellij.openapi.editor.DefaultLanguageHighlighterColors as Default
 
 /**
  * Markdoc のタグの色。Settings | Editor | Color Scheme | Markdoc で変更できる。
