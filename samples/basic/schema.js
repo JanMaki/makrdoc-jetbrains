@@ -17,6 +17,15 @@ module.exports = {
                 caption: {type: String},
             },
         },
+        // 配列・オブジェクトの属性値の色分けの確認用（docs/collections.mdoc）
+        map: {
+            render: "Map",
+            selfClosing: true,
+            attributes: {
+                coordinates: {type: Array},
+                meta: {type: Object},
+            },
+        },
     },
     // 変数の補完（`{% $`、`$user.`）と色分け（`$user.roles[0]`）の確認用
     variables: {
