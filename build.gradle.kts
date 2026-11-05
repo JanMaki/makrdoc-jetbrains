@@ -79,8 +79,10 @@ val sampleProjectPath = layout.projectDirectory.dir("samples/basic").asFile.abso
 val lspTrace = providers.gradleProperty("lspTrace").isPresent
 
 tasks.runIde {
-    // 動作確認用のサンプルプロジェクトを開いた状態で起動する
-    argumentProviders += CommandLineArgumentProvider { listOf(sampleProjectPath) }
+    // 動作確認用のサンプルプロジェクトを開いた状態で起動する。
+    // スクリプトの変数をラムダで直接参照するとスクリプト自体を捕まえて configuration cache に保存できないため、ローカルに写す
+    val projectPath = sampleProjectPath
+    argumentProviders += CommandLineArgumentProvider { listOf(projectPath) }
     // -PlspTrace を付けると、LSP のメッセージを log_runIde/language-services/ に記録する
     if (lspTrace) jvmArgs("-Didea.log.trace.categories=#com.intellij.platform.lsp")
 }

@@ -1,5 +1,6 @@
 package com.github.markdoc.jetbrains.lsp
 
+import com.github.markdoc.jetbrains.MarkdocTagScanner
 import com.google.gson.JsonObject
 import com.intellij.codeInsight.AutoPopupController
 import com.intellij.codeInsight.completion.CompletionParameters
@@ -13,8 +14,14 @@ import org.eclipse.lsp4j.CompletionItem
  *
  * サーバーが `data.triggerSuggest` を付けた候補（属性名）は、挿入後に補完ポップアップを開き直す。
  * `type=""` を挿入した直後は文字を入力していないため、そのままでは属性値の候補が出ない。
+ *
+ * コード（インラインコードとフェンスコードブロックの中身）の中では、サーバーに補完を求めない。
  */
 class MarkdocCompletionSupport : LspCompletionSupport() {
+    override fun shouldRunCodeCompletion(parameters: CompletionParameters): Boolean =
+        !MarkdocTagScanner.isInCode(parameters.editor.document.charsSequence, parameters.offset) &&
+                super.shouldRunCodeCompletion(parameters)
+
     override fun createLookupElement(parameters: CompletionParameters, item: CompletionItem): LookupElement? {
         val element = super.createLookupElement(parameters, item) ?: return null
         if (!item.triggersSuggest()) return element

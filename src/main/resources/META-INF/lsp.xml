@@ -1,6 +1,6 @@
 <idea-plugin>
-  <extensions defaultExtensionNs="com.intellij">
-    <platform.lsp.integrationProvider
-        implementation="com.github.markdoc.jetbrains.lsp.MarkdocLspIntegrationProvider"/>
-  </extensions>
+    <extensions defaultExtensionNs="com.intellij">
+        <platform.lsp.integrationProvider
+                implementation="com.github.markdoc.jetbrains.lsp.MarkdocLspIntegrationProvider"/>
+    </extensions>
 </idea-plugin>
