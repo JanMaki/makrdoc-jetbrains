@@ -50,6 +50,8 @@ intellijPlatform {
         }
         failureLevel = listOf(
             VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+            VerifyPluginTask.FailureLevel.INTERNAL_API_USAGES,
+            VerifyPluginTask.FailureLevel.OVERRIDE_ONLY_API_USAGES,
             VerifyPluginTask.FailureLevel.INVALID_PLUGIN,
             VerifyPluginTask.FailureLevel.MISSING_DEPENDENCIES,
         )
