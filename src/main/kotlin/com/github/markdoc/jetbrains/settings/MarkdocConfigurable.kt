@@ -7,6 +7,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.dsl.builder.*
@@ -21,10 +22,15 @@ class MarkdocConfigurable(private val project: Project) :
     BoundSearchableConfigurable("Markdoc", "com.github.markdoc.jetbrains.settings") {
 
     private val settings = MarkdocSettings.getInstance(project)
+    private val localSettings = MarkdocLocalSettings.getInstance(project)
 
     /** 画面を開いている間だけある。[createPanel] で作り、[disposeUIResources] で捨てる。 */
     private var configEditor: MarkdocConfigEditor? = null
 
+    /** 設定ファイルのパスの入力欄。画面を開いている間だけある。 */
+    private var configPathField: TextFieldWithBrowseButton? = null
+
+    /** 設定画面のパネルを作る。 */
     override fun createPanel(): DialogPanel {
         val editor = MarkdocConfigEditor(project).also { configEditor = it }
         val serverCombo = MarkdocServerComboBox(project)
@@ -35,7 +41,7 @@ class MarkdocConfigurable(private val project: Project) :
                     .bind(
                         { it.path },
                         { combo, path -> combo.path = path },
-                        settings::customServerPath.toMutableProperty(),
+                        localSettings::customServerPath.toMutableProperty(),
                     )
             }
             row("Config file:") {
@@ -45,6 +51,7 @@ class MarkdocConfigurable(private val project: Project) :
                     ::relativeToProjectRoot,
                 ).bindText(settings::configPath)
                     .align(AlignX.FILL)
+                    .also { configPathField = it.component }
             }
             row {
                 label("Configuration:").resizableColumn()
@@ -56,8 +63,10 @@ class MarkdocConfigurable(private val project: Project) :
         }
     }
 
+    /** 入力欄かエディタのどちらかが変わっているか。 */
     override fun isModified(): Boolean = super.isModified() || configEditor?.isModified == true
 
+    /** 入力欄とエディタを保存済みの内容に戻す。 */
     override fun reset() {
         super.reset()
         configEditor?.reset()
@@ -70,18 +79,26 @@ class MarkdocConfigurable(private val project: Project) :
     override fun apply() {
         val editor = configEditor
         // 設定を保存してから JSON の誤りで失敗しないよう、先に確かめる
-        if (editor?.isModified == true) editor.validate()
+        if (editor?.isModified == true) {
+            editor.validate()
+            // 別のファイルから読み込んだ内容で、すでにあるファイルを上書きしないよう、設定を保存する前に確かめる
+            editor.checkTarget(configPathField?.text ?: settings.configPath)
+        }
 
-        val before = settings.customServerPath to settings.configPath
+        val before = localSettings.customServerPath to settings.configPath
         super.apply()
+        // 空白だけのパスは既定値として保存されるので、入力欄にも反映する
+        configPathField?.text = settings.configPath
         // パスの変更を保存したあとで書くので、新しいパスのファイルに書き込まれる
         val written = editor?.save(settings.configPath) == true
 
-        if (written || before != settings.customServerPath to settings.configPath) askRestart()
+        if (written || before != localSettings.customServerPath to settings.configPath) askRestart()
     }
 
+    /** 画面を閉じるとき、保持している部品を捨てる。 */
     override fun disposeUIResources() {
         configEditor = null
+        configPathField = null
         super.disposeUIResources()
     }
 

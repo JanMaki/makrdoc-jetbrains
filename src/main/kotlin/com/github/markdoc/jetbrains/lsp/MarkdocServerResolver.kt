@@ -1,7 +1,8 @@
 package com.github.markdoc.jetbrains.lsp
 
-import com.github.markdoc.jetbrains.settings.MarkdocSettings
+import com.github.markdoc.jetbrains.settings.MarkdocLocalSettings
 import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import java.nio.file.Files
@@ -18,6 +19,8 @@ import java.nio.file.Path
 object MarkdocServerResolver {
     private const val PLUGIN_ID = "com.github.markdoc.jetbrains"
 
+    private val LOG = logger<MarkdocServerResolver>()
+
     /** プラグインの配布ディレクトリからの、同梱サーバーの相対パス。 */
     private const val BUNDLED_SERVER = "server/markdoc-lsp-server.js"
 
@@ -28,13 +31,15 @@ object MarkdocServerResolver {
      * （意図と違うサーバーで黙って動かさないため）。
      */
     fun resolve(project: Project): Path? {
-        val custom = MarkdocSettings.getInstance(project).customServerPath
+        val custom = MarkdocLocalSettings.getInstance(project).customServerPath
         if (custom.isEmpty()) return bundledServer()
-        return try {
+        val path = try {
             Path.of(custom).takeIf { Files.isRegularFile(it) }
         } catch (_: InvalidPathException) {
             null
         }
+        if (path == null) LOG.error("The custom Markdoc language server was not found: $custom")
+        return path
     }
 
     /** プラグインに同梱したサーバーを返す。配布物が壊れていてファイルがなければ `null`。 */

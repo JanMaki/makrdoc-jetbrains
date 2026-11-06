@@ -9,11 +9,12 @@ import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VfsUtilCore
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.EditorTextField
+import java.io.IOException
 
 /**
  * `markdoc.config.json` の中身を編集する JSON エディタ。
@@ -24,6 +25,9 @@ import com.intellij.ui.EditorTextField
 class MarkdocConfigEditor(private val project: Project) {
     /** 読み込んだファイルの改行が CRLF だったか。書き戻すときに元の改行へ戻すために覚えておく。 */
     private var crlf = false
+
+    /** エディタの内容を最後に読み込んだ（書き込んだ）設定ファイルの、プロジェクトルートからの相対パス。 */
+    private var loadedPath = ""
 
     /** エディタに最後に読み込んだ（書き込んだ）内容。LF の改行だけを持つ（ドキュメントは CRLF を扱えないため）。 */
     private var loadedText = loadText()
@@ -61,10 +65,33 @@ class MarkdocConfigEditor(private val project: Project) {
      * @throws ConfigurationException 読めない場合。メッセージは設定画面にそのまま表示される。
      */
     fun validate() {
-        try {
+        val element = try {
             JsonParser.parseString(component.text)
         } catch (e: JsonParseException) {
             throw ConfigurationException(e.cause?.message ?: e.message ?: "Malformed JSON", "Invalid Configuration")
+        }
+        // 読み込み側（MarkdocConfigReader.read）が受け付ける形と同じかどうか
+        if (MarkdocConfigReader.firstEntry(element) == null) {
+            throw ConfigurationException(MarkdocConfigReader.SHAPE_ERROR, "Invalid Configuration")
+        }
+    }
+
+    /**
+     * 内容が変わっているとき、[relativePath] に書き込んでよいかを確かめる。
+     * 別のファイルから読み込んだ内容で、すでにある別のファイルを上書きしてしまう場合は書き込めない。
+     *
+     * @throws ConfigurationException 既存の別のファイルを上書きしてしまう場合。
+     */
+    fun checkTarget(relativePath: String) {
+        if (!isModified) return
+        val path = MarkdocSettings.normalizePath(relativePath)
+        if (path == loadedPath) return
+        val exists = project.guessProjectDir()?.findFileByRelativePath(path) != null
+        if (exists) {
+            throw ConfigurationException(
+                "$path already exists. The editor holds the content of $loadedPath, so it would be overwritten.",
+                "Config File Already Exists",
+            )
         }
     }
 
@@ -73,12 +100,26 @@ class MarkdocConfigEditor(private val project: Project) {
      * ファイルや親ディレクトリがなければ作る。
      *
      * @return 書き込んだかどうか。
+     * @throws ConfigurationException 既存の別のファイルを上書きしてしまう場合（[checkTarget]）や、書き込みに失敗した場合。
      */
     fun save(relativePath: String): Boolean {
         if (!isModified) return false
+        checkTarget(relativePath)
         val root = project.guessProjectDir() ?: return false
         val text = component.text
-        val path = FileUtil.toSystemIndependentName(relativePath)
+        val path = MarkdocSettings.normalizePath(relativePath)
+        try {
+            write(root, path, text)
+        } catch (e: IOException) {
+            throw ConfigurationException("Failed to write $path: ${e.message}", "Cannot Save Configuration")
+        }
+        loadedText = text
+        loadedPath = path
+        return true
+    }
+
+    /** [root] からの [path] に [text] を書き込む。ファイルや親ディレクトリがなければ作る。 */
+    private fun write(root: VirtualFile, path: String, text: String) {
         runWriteAction {
             val file = root.findFileByRelativePath(path) ?: run {
                 val dir = VfsUtil.createDirectoryIfMissing(root, path.substringBeforeLast('/', ""))
@@ -87,12 +128,11 @@ class MarkdocConfigEditor(private val project: Project) {
             }
             VfsUtil.saveText(file, if (crlf) StringUtil.convertLineSeparators(text, "\r\n") else text)
         }
-        loadedText = text
-        return true
     }
 
-    /** 設定ファイルの中身を LF の改行で返す。ファイルがなければ雛形。 */
+    /** 設定ファイルの中身を LF の改行で返す。ファイルがなければ雛形。読み込んだパスは [loadedPath] に覚える。 */
     private fun loadText(): String {
+        loadedPath = MarkdocSettings.getInstance(project).configPath
         val raw = MarkdocConfigReader.findConfigFile(project)?.let { VfsUtilCore.loadText(it) }
         crlf = raw?.contains("\r\n") == true
         return if (raw == null) TEMPLATE else StringUtil.convertLineSeparators(raw)
