@@ -34,9 +34,13 @@ const PATH_SEGMENT = /([\w-]+)|\[(\d+)\]|\["((?:[^"\\]|\\.)*)"\]/g;
 
 /**
  * 注釈の入力位置。行にノードの内容があり、その後ろに `{%` と属性だけが続く形（`# 見出し {% id="a" cl`）。
- * 行頭が `{%` の行はタグなので除く。グループは順に、`{%` の前の内容、入力済みの属性、入力中の名前。
+ * 行頭が `{%` の行はタグなので除く。グループは順に、`{%` の前の内容、入力済みの属性、
+ * （引用符なしの値を取る内部のグループ）、入力中の名前。
+ *
+ * 引用符なしの値 `[^ "%]*` は `=` も含められ、`a=a=a=…` をどう区切っても一致するため、
+ * そのままでは失敗時の再試行が指数的に増える。先読みと後方参照で値を 1 通りに固定している（原子的なグループの代用）。
  */
-const ANNOTATION_PATTERN = /^(?=.*\S)(?!\s*\{%)(.*?)\{%((?: *[\w-]+=(?:"[^"]*"|[^ "%]*))*) *([\w-]*)$/;
+const ANNOTATION_PATTERN = /^(?=.*\S)(?!\s*\{%)(.*?)\{%((?: *[\w-]+=(?:"[^"]*"|(?=([^ "%]*))\3))*) *([\w-]*)$/;
 
 /** どのタグにも、注釈にも書ける共通の属性（Markdoc はこの 2 つを属性名として常に受け付ける）。 */
 const COMMON_ATTRIBUTES = {class: {type: String}, id: {type: String}};
@@ -191,7 +195,7 @@ class MarkdocCompletionProvider extends Plugins.CompletionProvider {
      * 見出し・リスト項目・表のセルでは、後ろの `{%` はタグにならないのでタグ名は出さない。
      */
     completeAnnotation(params, matches) {
-        const [, content, written, typed] = matches;
+        const [, content, written, , typed] = matches;
         const node = this.annotatedNode(params, content);
         const nodes = this.schema(params)?.nodes ?? {};
         const attributes = {
@@ -458,4 +462,4 @@ function isStringAttribute(attribute) {
     return !types.every((type) => NON_STRING_TYPES.includes(type));
 }
 
-module.exports = {MarkdocCompletionProvider};
+module.exports = {MarkdocCompletionProvider, ANNOTATION_PATTERN};
