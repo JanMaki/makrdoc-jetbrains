@@ -41,8 +41,21 @@ object MarkdocConfigReader {
     }
 
     /** 設定（[MarkdocSettings.configPath]）で指定された、プロジェクトルートからの設定ファイルを返す。なければ `null`。 */
-    fun findConfigFile(project: Project): VirtualFile? =
-        project.guessProjectDir()?.findFileByRelativePath(MarkdocSettings.getInstance(project).configPath)
+    fun findConfigFile(project: Project): VirtualFile? {
+        val root = project.guessProjectDir() ?: return null
+        val file = root.findFileByRelativePath(MarkdocSettings.getInstance(project).configPath) ?: return null
+        // ディレクトリや、`..` でルートの外に出たファイルは設定ファイルとして扱わない
+        return file.takeIf { !it.isDirectory && VfsUtilCore.isAncestor(root, it, true) }
+    }
+
+    /** 形式が違うときのエラーメッセージ。 */
+    const val SHAPE_ERROR = "Expected an array of configuration objects"
+
+    /** 設定ファイルの [element] から使うエントリ（配列なら先頭、オブジェクトならそれ自身）を返す。形式が違えば `null`。 */
+    fun firstEntry(element: JsonElement): JsonObject? = when (element) {
+        is JsonArray -> element.firstOrNull()
+        else -> element
+    } as? JsonObject
 
     /**
      * [project] の設定ファイルを読み、サーバーに渡す設定エントリを返す。
@@ -59,13 +72,8 @@ object MarkdocConfigReader {
             // Gson は行・列を含む詳細を cause 側に持つことが多い
             return Result.Invalid(file, e.cause?.message ?: e.message ?: "Malformed JSON")
         }
-        val entry: JsonElement? = when (element) {
-            is JsonArray -> element.firstOrNull()
-            else -> element
-        }
-        if (entry !is JsonObject) {
-            return Result.Invalid(file, "Expected an array of configuration objects")
-        }
+        val entry = firstEntry(element)
+            ?: return Result.Invalid(file, SHAPE_ERROR)
         // 読み込んだ JSON を書き換えないように複製してから root を埋める
         val config = entry.deepCopy()
         config.addProperty("root", root)
