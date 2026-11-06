@@ -3,7 +3,8 @@
   "private": true,
   "description": "Bundles @markdoc/language-server into a single JS file shipped with the plugin",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "test": "node --test test/annotation-pattern.test.js"
   },
   "dependencies": {
     "@markdoc/language-server": "0.0.14"
