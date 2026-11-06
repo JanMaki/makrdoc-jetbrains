@@ -33,8 +33,20 @@ intellijPlatform {
         }
     }
     pluginVerification {
+        // README の「対応 IDE」に挙げた IDE を、サポートする最小の版で検査する
         ides {
-            create(IntelliJPlatformType.WebStorm, "2026.1.4")
+            val minVersion = "2026.1.4"
+            listOf(
+                IntelliJPlatformType.WebStorm,
+                IntelliJPlatformType.IntellijIdea,
+                IntelliJPlatformType.PyCharm,
+                IntelliJPlatformType.PhpStorm,
+                IntelliJPlatformType.GoLand,
+                IntelliJPlatformType.RubyMine,
+                IntelliJPlatformType.Rider,
+                IntelliJPlatformType.CLion,
+                IntelliJPlatformType.DataGrip,
+            ).forEach { create(it, minVersion) }
         }
     }
 }
