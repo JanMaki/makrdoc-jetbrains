@@ -38,7 +38,7 @@ object MarkdocServerResolver {
         } catch (_: InvalidPathException) {
             null
         }
-        if (path == null) LOG.error("The custom Markdoc language server was not found: $custom")
+        if (path == null) LOG.warn("The custom Markdoc language server was not found: $custom")
         return path
     }
 
