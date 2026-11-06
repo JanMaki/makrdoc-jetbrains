@@ -29,7 +29,11 @@ test("属性を書いていない段落の注釈では、入力中の名前に�
         Schema: {get: () => ({tags: {callout: {description: "d"}, other: {}}, nodes: {}})},
         Documents: {get: () => ({getText: () => line})},
     };
-    const provider = new MarkdocCompletionProvider({}, {onCompletion() {}, onCompletionResolve() {}}, services);
+    const provider = new MarkdocCompletionProvider({}, {
+        onCompletion() {
+        }, onCompletionResolve() {
+        }
+    }, services);
     const params = {textDocument: {uri}, position: {line: 0, character: line.length}};
     const items = provider.completeAnnotation(params, ANNOTATION_PATTERN.exec(line));
     assert.ok(items.some((item) => item.label === "callout"));

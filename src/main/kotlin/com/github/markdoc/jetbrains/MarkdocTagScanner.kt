@@ -218,7 +218,15 @@ object MarkdocTagScanner {
                 val commentEnd = findCommentEnd(text, contentStart, text.length)
                 if (commentEnd >= 0) {
                     // コメントは段落を終えるので、ここまでの段落を先に走査する
-                    i = scanRange(text, maxOf(i, inlineStart), lineStart, tokens, codeSpans = true, code, comments = true)
+                    i = scanRange(
+                        text,
+                        maxOf(i, inlineStart),
+                        lineStart,
+                        tokens,
+                        codeSpans = true,
+                        code,
+                        comments = true
+                    )
                     // 前の行から続くタグが `<!--` まで読んでいれば、コメントではない
                     if (i <= contentStart) {
                         tokens += Token(contentStart, commentEnd, Kind.COMMENT)
