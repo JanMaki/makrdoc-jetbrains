@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "markdoc-config",
+  "title": "Markdoc language server configuration",
+  "description": "Configuration for @markdoc/language-server. An array of site configurations. This plugin uses only the first entry.",
+  "anyOf": [
+    {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/entry"
+      }
+    },
+    {
+      "$ref": "#/definitions/entry"
+    }
+  ],
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "description": "Configuration for one site.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifier that uniquely identifies this configuration. Shown as the diagnostic source (markdoc:<id>)."
+        },
+        "path": {
+          "type": "string",
+          "description": "Directory that contains the Markdoc files, relative to the project root. Defaults to the project root."
+        },
+        "root": {
+          "type": "string",
+          "description": "Ignored: this plugin always replaces it with the project root."
+        },
+        "schema": {
+          "$ref": "#/definitions/schema"
+        },
+        "routing": {
+          "$ref": "#/definitions/routing"
+        },
+        "markdoc": {
+          "$ref": "#/definitions/markdoc"
+        },
+        "server": {
+          "type": "object",
+          "description": "Custom language server for the Visual Studio Code extension. Ignored by this plugin.",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Path to a custom server module, relative to the project root."
+            },
+            "watch": {
+              "type": [
+                "boolean",
+                "string"
+              ],
+              "description": "Restart the server when the module (true) or the files matching this glob (string) change."
+            }
+          }
+        },
+        "templates": {
+          "type": "object",
+          "description": "Templates for the Visual Studio Code extension's \"New file from template\" command. Ignored by this plugin.",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Glob that matches the template files."
+            }
+          }
+        },
+        "preview": {
+          "type": "boolean",
+          "description": "Enable the preview of the Visual Studio Code extension. Ignored by this plugin."
+        },
+        "watch": {
+          "type": "array",
+          "description": "Declared by the language server but not used. Ignored by this plugin.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "schema": {
+      "type": "object",
+      "description": "Location of the Markdoc schema and how to load it.",
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the schema module, relative to the project root."
+        },
+        "type": {
+          "enum": [
+            "node",
+            "esm"
+          ],
+          "description": "Module format of the schema: \"node\" loads it with require (module.exports), \"esm\" with import. When omitted, it is loaded as \"esm\"."
+        },
+        "property": {
+          "type": "string",
+          "description": "Name of the exported property that contains the schema. When omitted, the whole module.exports (node) or the default export (esm) is used."
+        },
+        "watch": {
+          "type": "boolean",
+          "description": "Reload the schema automatically when the file changes."
+        }
+      },
+      "additionalProperties": false
+    },
+    "routing": {
+      "type": "object",
+      "description": "Routing configuration of the site.",
+      "required": [
+        "frontmatter"
+      ],
+      "properties": {
+        "frontmatter": {
+          "type": "string",
+          "description": "Name of the frontmatter property that holds the route of each document."
+        }
+      },
+      "additionalProperties": false
+    },
+    "markdoc": {
+      "type": "object",
+      "description": "Options passed to the Markdoc tokenizer (markdown-it options).",
+      "properties": {
+        "allowComments": {
+          "type": "boolean",
+          "description": "Allow comments (<!-- ... -->) in documents."
+        },
+        "allowIndentation": {
+          "type": "boolean",
+          "description": "Allow tags and Markdown blocks to be indented by 4 spaces or more without becoming code blocks."
+        },
+        "slots": {
+          "type": "boolean",
+          "description": "Parse slots ({% slot %})."
+        },
+        "typographer": {
+          "type": "boolean",
+          "description": "Enable markdown-it typographic replacements and smart quotes."
+        },
+        "validateFunctions": {
+          "type": "boolean",
+          "description": "Has no effect here: Markdoc reads validateFunctions from validation in the schema (config.validation.validateFunctions).",
+          "deprecationMessage": "Has no effect. Set validation.validateFunctions in the Markdoc schema instead."
+        }
+      }
+    }
+  }
+}

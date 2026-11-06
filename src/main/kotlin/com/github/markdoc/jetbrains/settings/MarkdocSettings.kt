@@ -21,7 +21,7 @@ class MarkdocSettings : SimplePersistentStateComponent<MarkdocSettings.State>(St
     }
 
     /**
-     * プロジェクトルートからの設定ファイルの相対パス。`/` 区切りで返す。
+     * プロジェクトルートからの設定ファイルの相対パス。[normalizePath] で整えた `/` 区切りで返す。
      * 空白だけの値は未設定として扱い、[DEFAULT_CONFIG_PATH] を返す。
      */
     var configPath: String
@@ -37,8 +37,27 @@ class MarkdocSettings : SimplePersistentStateComponent<MarkdocSettings.State>(St
         /** [project] の設定を返す。 */
         fun getInstance(project: Project): MarkdocSettings = project.service()
 
-        /** [path] を前後の空白を除いた `/` 区切りにする。空なら [DEFAULT_CONFIG_PATH]。 */
-        fun normalizePath(path: String): String =
-            FileUtil.toSystemIndependentName(path.trim()).ifEmpty { DEFAULT_CONFIG_PATH }
+        /**
+         * [path] を前後の空白を除いた `/` 区切りにし、`.` と `..` を字句の上で畳む（`./a.json` → `a.json`、
+         * `a/../b.json` → `b.json`）。空なら [DEFAULT_CONFIG_PATH]。
+         *
+         * 設定の読み込み、ファイルの作成、エディタの保存先の比較がすべてこれを通るので、同じファイルは同じ表記になる。
+         * ルートより上へ出る `..` は残す（ルートの外として書き込み前の検査で弾かれる）。畳んだ結果が空（ルートそのもの）
+         * なら `.` を返す。絶対パスはそのまま返す（同じくルートの外として扱われる）。
+         */
+        fun normalizePath(path: String): String {
+            val independent = FileUtil.toSystemIndependentName(path.trim())
+            if (independent.isEmpty()) return DEFAULT_CONFIG_PATH
+            if (independent.startsWith("/") || FileUtil.isAbsolute(independent)) return independent
+            val names = ArrayDeque<String>()
+            for (name in independent.split('/')) {
+                when {
+                    name.isEmpty() || name == "." -> Unit
+                    name == ".." && names.isNotEmpty() && names.last() != ".." -> names.removeLast()
+                    else -> names.addLast(name)
+                }
+            }
+            return names.joinToString("/").ifEmpty { "." }
+        }
     }
 }

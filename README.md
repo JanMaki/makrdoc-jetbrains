@@ -36,8 +36,9 @@ Node.js プラグインと Markdown プラグインの両方が使える IDE に
 | 機能                 | 内容                                                                                                                                                                                                                                                                   |
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | ファイルの関連付け   | Markdoc の拡張子を標準の Markdown ファイルタイプに関連付ける                                                                                                                                                                                                           |
-| 設定の受け渡し       | プロジェクトルートの `markdoc.config.json` を読み、先頭のエントリを初期化オプションでサーバーに渡す。ファイルがなければスキーマなしで起動し、壊れていれば起動しない                                                                                                    |
-| 設定画面             | Settings → Languages & Frameworks → Markdoc で、言語サーバーの JS ファイル（プルダウンで同梱版か、Select... で選んだファイル）と、設定ファイルのパス（既定 `markdoc.config.json`）を変えられる。設定ファイルの中身は同じ画面の JSON エディタで編集でき、Apply で書き戻す（JSON として読めなければ保存できない。ファイルがなければ、編集して Apply したときだけ作る）。プロジェクトごとに `.idea/markdoc.xml` へ保存する。反映には IDE の再起動が必要 |
+| 設定の受け渡し       | プロジェクトルートの `markdoc.config.json` を読み、先頭のエントリを初期化オプションでサーバーに渡す。ファイルがなければ `path` を `""`（ルート直下）にしたスキーマなしの設定で起動し、壊れていれば起動しない                                                                                                    |
+| 設定画面             | Settings → Languages & Frameworks → Markdoc で、言語サーバーの JS ファイル（プルダウンで同梱版か、Select... で選んだファイル）と、設定ファイルのパス（既定 `markdoc.config.json`）を変えられる。設定ファイルの中身は同じ画面の JSON エディタで編集でき、Apply で書き戻す（JSON として読めなければ保存できない）。ファイルがなければ作成時の雛形を読み取り専用で表示し、Create Config File ボタンで雛形の中身のファイルを作ると編集できる。プロジェクトごとに `.idea/markdoc.xml` へ保存する。反映には IDE の再起動が必要 |
+| 設定ファイルの作成   | 設定ファイルがないとき、Markdoc ファイル（`.mdoc` など）を開くか、`.md` ファイルに Markdoc のタグ（`{% … %}`）が現れると、作成を勧める通知を出す（プロジェクトごとに 1 度だけ）。New メニューの「Markdoc Config File」でも作れる（設定のパスに作るので、選んでいるディレクトリには関係しない。ファイルがあれば項目を出さない）。作るファイルの中身は公式の言語サーバーの README（Configuration quickstart）の例と同じなので、`path` やスキーマのパスはプロジェクトに合わせて書き換える |
 | 起動条件             | 信頼済みのプロジェクトで、ローカルの Node.js が設定されているときだけ起動する（サーバーはスキーマの JS を実行するため）                                                                                                                                                |
 | ファイルパスへの移動 | `partial` の `file`、ほかのタグの `file`・`src`・`href`・`path` の値で Ctrl+B（Ctrl+クリック）するとファイルへ移動する。`partials/footer.mdoc` の `partials` の上ならディレクトリへ移動する。移動できるパスの上でだけ、Ctrl+B を Markdown の太字の切り替えより優先する |
 | ファイルパスの補完   | 同じ属性の値で、ディレクトリの中身を候補に出す。`/` を入力すると次の階層の候補が出る。`partial` では Markdoc ファイルだけを出す                                                                                                                                        |
@@ -110,6 +111,7 @@ IDE の再起動が必要。
 src/main/kotlin/com/github/markdoc/jetbrains/
   MarkdocFiles.kt                    Markdoc ファイルの判定
   MarkdocConfigReader.kt             markdoc.config.json の読み込みと初期化オプションの組み立て
+  MarkdocConfigFile.kt               markdoc.config.json の雛形と作成
   MarkdocTagScanner.kt               タグの中のトークンの切り出し（色分けとパスの特定で共用）
   MarkdocTypedHandler.kt             `/` 入力時の `/%}` の自動入力と、パスの補完の自動表示
   MarkdocActionPromoter.kt           パスの上での Ctrl+B を太字の切り替えより優先
@@ -120,6 +122,7 @@ src/main/kotlin/com/github/markdoc/jetbrains/
   lsp/MarkdocCompletionSupport.kt       属性名の挿入後に補完を開き直す
   lsp/MarkdocServerResolver.kt          サーバーの場所の解決（設定で指定がなければ同梱）
   settings/                             プロジェクト設定の保存と設定画面
+  config/                               設定ファイルがないときの通知と、New メニューからの作成
 src/main/resources/META-INF/
   plugin.xml                         必須の拡張（ファイルタイプ、入力補助）
   lsp.xml                            LSP API がある IDE でだけ読み込む拡張
