@@ -21,7 +21,7 @@ dependencies {
     intellijPlatform {
         webstorm(providers.gradleProperty("platformVersion"))
         // LSP はプラットフォームのモジュールなので bundledPlugins には書かない
-        bundledPlugins("JavaScript", "NodeJS", "org.intellij.plugins.markdown")
+        bundledPlugins("JavaScript", "NodeJS", "org.intellij.plugins.markdown", "com.intellij.modules.json")
     }
 }
 

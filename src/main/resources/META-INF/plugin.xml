@@ -17,6 +17,8 @@
     <depends>NodeJS</depends>
     <!-- LSP API を持たない IDE でも、ファイルタイプの関連付けだけは動くように optional にする -->
     <depends optional="true" config-file="lsp.xml">com.intellij.modules.lsp</depends>
+    <!-- markdoc.config.json の補完と検査（JSON スキーマ）。JSON プラグインがない IDE では使わない -->
+    <depends optional="true" config-file="json.xml">com.intellij.modules.json</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- 独自のファイルタイプは作らず、既存の Markdown ファイルタイプに拡張子を追加する -->
