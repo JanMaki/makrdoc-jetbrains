@@ -70,6 +70,9 @@ object MarkdocConfigFile {
      * [root] からの [path] に [text] をそのまま（改行を変えずに）書き込む。ファイルや親ディレクトリがなければ作る。
      * 書き込みアクションの中で実行するので、EDT から呼ぶ。
      *
+     * [path] は [MarkdocSettings.normalizePath] で整え、[checkInsideRoot] で確かめたものを渡す
+     * （`./` や `..` が残っていると、`.` や `..` という名前のディレクトリを作ろうとしてしまう）。
+     *
      * @return 書き込んだファイル。
      * @throws IOException ファイルや親ディレクトリを作れない場合、書き込めない場合。
      */
