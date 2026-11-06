@@ -3,6 +3,7 @@ package com.github.markdoc.jetbrains.settings
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.BoundSearchableConfigurable
+import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.ui.DialogPanel
@@ -16,6 +17,7 @@ import com.intellij.ui.dsl.builder.*
  * Settings → Languages & Frameworks → Markdoc の設定画面。
  *
  * 上から、言語サーバーの選択（[MarkdocServerComboBox]）、設定ファイルのパス、設定ファイルの中身（[MarkdocConfigEditor]）を並べる。
+ * 設定ファイルがなければ、中身の欄には作成時の雛形を読み取り専用で（灰色で）出し、作成ボタンを出す。
  * 設定は言語サーバーの起動時に読まれるため、変更を適用したら IDE の再起動を勧める。
  */
 class MarkdocConfigurable(private val project: Project) :
@@ -30,9 +32,13 @@ class MarkdocConfigurable(private val project: Project) :
     /** 設定ファイルのパスの入力欄。画面を開いている間だけある。 */
     private var configPathField: TextFieldWithBrowseButton? = null
 
+    /** 設定ファイルがないときだけ見せる、作成ボタンの行。画面を開いている間だけある。 */
+    private var createRow: Row? = null
+
     /** 設定画面のパネルを作る。 */
     override fun createPanel(): DialogPanel {
-        val editor = MarkdocConfigEditor(project).also { configEditor = it }
+        val editor = MarkdocConfigEditor(project) { exists -> createRow?.visible(!exists) }
+            .also { configEditor = it }
         val serverCombo = MarkdocServerComboBox(project)
         return panel {
             row("Language server:") {
@@ -57,6 +63,9 @@ class MarkdocConfigurable(private val project: Project) :
                 label("Configuration:").resizableColumn()
                 browserLink("See available options", LANGUAGE_SERVER_URL).align(AlignX.RIGHT)
             }
+            createRow = row {
+                button("Create Config File") { createConfigFile() }
+            }.visible(!editor.exists)
             row {
                 cell(editor.component).align(Align.FILL)
             }.resizableRow()
@@ -95,10 +104,24 @@ class MarkdocConfigurable(private val project: Project) :
         if (written || before != localSettings.customServerPath to settings.configPath) askRestart()
     }
 
+    /**
+     * 入力欄のパスに雛形の中身で設定ファイルを作り、エディタで編集できるようにする。
+     * 雛形はプロジェクトに合わせて書き換える前提なので、ここでは再起動を勧めず、編集して Apply したときに勧める。
+     */
+    private fun createConfigFile() {
+        val editor = configEditor ?: return
+        try {
+            editor.create(configPathField?.text ?: settings.configPath)
+        } catch (e: ConfigurationException) {
+            Messages.showErrorDialog(project, e.messageHtml.toString(), e.title)
+        }
+    }
+
     /** 画面を閉じるとき、保持している部品を捨てる。 */
     override fun disposeUIResources() {
         configEditor = null
         configPathField = null
+        createRow = null
         super.disposeUIResources()
     }
 

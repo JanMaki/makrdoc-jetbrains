@@ -41,5 +41,19 @@
         <!-- パスの中ではほかの補完を止めるため、先に動かす -->
         <completion.contributor language="Markdown" order="first"
                                 implementationClass="com.github.markdoc.jetbrains.paths.MarkdocPathCompletionContributor"/>
+        <!-- 設定ファイルがないときに、作成を勧める通知を出す -->
+        <notificationGroup id="Markdoc" displayType="BALLOON"/>
+        <postStartupActivity implementation="com.github.markdoc.jetbrains.config.MarkdocConfigStartup"/>
     </extensions>
+
+    <actions>
+        <!-- New メニューから公式 README の例の中身で設定ファイルを作る -->
+        <action id="Markdoc.NewConfigFile"
+                class="com.github.markdoc.jetbrains.config.NewMarkdocConfigAction"
+                text="Markdoc Config File"
+                description="Create markdoc.config.json from the example configuration"
+                icon="AllIcons.FileTypes.Json">
+            <add-to-group group-id="NewGroup" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>

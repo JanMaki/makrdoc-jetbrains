@@ -48,6 +48,12 @@ object MarkdocConfigReader {
         return file.takeIf { !it.isDirectory && VfsUtilCore.isAncestor(root, it, true) }
     }
 
+    /**
+     * [project] の設定ファイルがないかどうか。作成を勧める通知や New メニューの項目を出すかの判定に使う。
+     * プロジェクトルートがない場合は作れないので偽を返す。
+     */
+    fun isMissing(project: Project): Boolean = projectRoot(project) != null && findConfigFile(project) == null
+
     /** 形式が違うときのエラーメッセージ。 */
     const val SHAPE_ERROR = "Expected an array of configuration objects"
 
@@ -98,6 +104,7 @@ object MarkdocConfigReader {
      *
      * サーバーは初期化オプションの `config` がないと起動時に例外で終了するため、
      * スキーマなしでも構文エラーの検出などが動くように `root` と `path` だけを渡す。
+     * 作成時の雛形（[MarkdocConfigFile.TEMPLATE_TEXT]）は例のパスを含むので、ここでは使わない。
      */
     fun defaultConfig(project: Project): JsonObject = JsonObject().apply {
         addProperty("root", projectRoot(project) ?: "")
