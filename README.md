@@ -3,9 +3,18 @@
 公式の [`@markdoc/language-server`](https://github.com/markdoc/language-server) を JetBrains の LSP API で動かし、WebStorm
 などで Markdoc の補完・検証を提供する非公式プラグイン。
 
-- 対象 IDE：2026.1.4 以降で、Node.js サポートを持つ JetBrains IDE
+- 対象 IDE：2026.1.4 以降の、Node.js プラグインと Markdown プラグインを持つ JetBrains IDE（下記の「対応 IDE」を参照）
 - 対象ファイル：`.mdoc`、`.markdoc`、`*.markdoc.md`（Markdown ファイルとして扱う）
 - 実行時に必要なもの：Node.js（プロジェクトの Node.js インタープリター設定を使う）
+
+## 対応 IDE
+
+Node.js プラグインと Markdown プラグインの両方が使える IDE に対応する（Marketplace の互換性表示による）。
+
+- 対応：WebStorm、IntelliJ IDEA（Ultimate・統合版）、PyCharm Professional、PhpStorm、GoLand、RubyMine、Rider、CLion
+- 非対応：
+  - Android Studio、IntelliJ IDEA Community、PyCharm Community、DataSpell（Node.js プラグインがない）
+  - RustRover（Markdown プラグインがない）
 
 ## 機能
 
@@ -122,7 +131,7 @@ samples/basic/                       動作確認用の Markdoc プロジェク�
 
 ```bash
 ./gradlew buildPlugin      # build/distributions/ に配布 ZIP を作る
-./gradlew verifyPlugin     # Plugin Verifier で 2026.1.4 との互換性を検査する
+./gradlew verifyPlugin     # Plugin Verifier で対応 IDE の 2026.1.4 との互換性を検査する
 ./gradlew runIde           # samples/basic を開いたサンドボックスの WebStorm を起動する
 ./gradlew runIde -PlspTrace  # LSP のメッセージを log_runIde/language-services/ に記録する
 ```

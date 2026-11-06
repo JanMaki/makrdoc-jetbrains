@@ -1,5 +1,6 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
     id("org.jetbrains.intellij.platform") version "2.19.0"
@@ -33,9 +34,27 @@ intellijPlatform {
         }
     }
     pluginVerification {
+        // README の「対応 IDE」に挙げた IDE を、サポートする最小の版で検査する
         ides {
-            create(IntelliJPlatformType.WebStorm, "2026.1.4")
+            val minVersion = "2026.1.4"
+            listOf(
+                IntelliJPlatformType.WebStorm,
+                IntelliJPlatformType.IntellijIdea,
+                IntelliJPlatformType.PyCharm,
+                IntelliJPlatformType.PhpStorm,
+                IntelliJPlatformType.GoLand,
+                IntelliJPlatformType.RubyMine,
+                IntelliJPlatformType.Rider,
+                IntelliJPlatformType.CLion,
+            ).forEach { create(it, minVersion) }
         }
+        failureLevel = listOf(
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+            VerifyPluginTask.FailureLevel.INTERNAL_API_USAGES,
+            VerifyPluginTask.FailureLevel.OVERRIDE_ONLY_API_USAGES,
+            VerifyPluginTask.FailureLevel.INVALID_PLUGIN,
+            VerifyPluginTask.FailureLevel.MISSING_DEPENDENCIES,
+        )
     }
 }
 
