@@ -5,6 +5,7 @@ import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VFileProperty
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -49,7 +50,7 @@ object MarkdocConfigFile {
      * プロジェクトルートからの [relativePath]（既定は設定のパス）に、[TEMPLATE_TEXT] の中身で設定ファイルを作る。
      *
      * @return 作ったファイル。
-     * @throws ConfigurationException ルートの外を指す場合、すでにファイルがある場合、書き込みに失敗した場合。
+     * @throws ConfigurationException 絶対パスやルートの外を指す場合、すでにファイルがある場合、書き込みに失敗した場合。
      */
     fun create(project: Project, relativePath: String = MarkdocSettings.getInstance(project).configPath): VirtualFile {
         val root = project.guessProjectDir()
@@ -87,12 +88,20 @@ object MarkdocConfigFile {
     }
 
     /**
-     * [path] がプロジェクトルートの中のファイルを指すか確かめる。`..` や絶対パスでルートの外に出る場合は書き込めない。
-     * プロジェクトルートがなければ何もしない（書き込む側でルートがないことを扱う）。
+     * [path] がプロジェクトルートの中のファイルを指すか確かめる。`..` でルートの外に出る場合は書き込めない。
+     * 絶対パスは、ルートの中を指していても書き込めない（[write] はルートからの相対パスとして扱うため、
+     * `/home/user/project/x` がルートの下の `home/user/project/x` になってしまう）。
+     * プロジェクトルートがなければ、絶対パスの検査だけ行う（書き込む側でルートがないことを扱う）。
      *
-     * @throws ConfigurationException ルートの外（またはルートそのもの）を指す場合や、シンボリックリンクを通る場合。
+     * @throws ConfigurationException 絶対パスの場合、ルートの外（またはルートそのもの）を指す場合、シンボリックリンクを通る場合。
      */
     fun checkInsideRoot(project: Project, path: String) {
+        if (path.startsWith("/") || FileUtil.isAbsolute(path)) {
+            throw ConfigurationException(
+                "$path is an absolute path. Specify a path relative to the project root.",
+                "Invalid Config File Path",
+            )
+        }
         val root = project.guessProjectDir() ?: return
         val rootPath = Path.of(root.path).normalize()
         val target = try {
