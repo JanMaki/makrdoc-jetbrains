@@ -36,8 +36,8 @@ class MarkdocLspIntegrationProvider : LspIntegrationProvider {
         // WSL やリモートのインタープリターではサーバーとプロジェクトのパス表記が合わないため、ローカルのものに限る
         val interpreter = NodeJsInterpreterManager.getInstance(project).interpreter as? NodeJsLocalInterpreter ?: return
 
-        val serverPath = MarkdocServerResolver.resolve() ?: run {
-            LOG.warn("Bundled Markdoc language server is missing")
+        val serverPath = MarkdocServerResolver.resolve(project) ?: run {
+            LOG.warn("Markdoc language server is missing")
             return
         }
 

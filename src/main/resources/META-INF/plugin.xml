@@ -31,6 +31,8 @@
                 implementation="com.github.markdoc.jetbrains.highlighting.MarkdocTagHighlightFilter"/>
         <lang.inspectionSuppressor language="Markdown"
                                    implementationClass="com.github.markdoc.jetbrains.highlighting.MarkdocTagInspectionSuppressor"/>
+        <projectConfigurable parentId="language" instance="com.github.markdoc.jetbrains.settings.MarkdocConfigurable"
+                             id="com.github.markdoc.jetbrains.settings" displayName="Markdoc"/>
         <colorSettingsPage implementation="com.github.markdoc.jetbrains.highlighting.MarkdocColorSettingsPage"/>
         <!-- Markdoc ファイルの Ctrl+B を、Markdown の太字の切り替えより「宣言へ移動」を優先させる -->
         <actionPromoter implementation="com.github.markdoc.jetbrains.MarkdocActionPromoter" order="last"/>
