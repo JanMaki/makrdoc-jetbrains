@@ -15,6 +15,8 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.EditorTextField
 import java.io.IOException
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
 
 /**
  * `markdoc.config.json` の中身を編集する JSON エディタ。
@@ -80,17 +82,40 @@ class MarkdocConfigEditor(private val project: Project) {
      * 内容が変わっているとき、[relativePath] に書き込んでよいかを確かめる。
      * 別のファイルから読み込んだ内容で、すでにある別のファイルを上書きしてしまう場合は書き込めない。
      *
-     * @throws ConfigurationException 既存の別のファイルを上書きしてしまう場合。
+     * @throws ConfigurationException プロジェクトルートの外を指す場合や、既存の別のファイルを上書きしてしまう場合。
      */
     fun checkTarget(relativePath: String) {
         if (!isModified) return
         val path = MarkdocSettings.normalizePath(relativePath)
+        // 読み込んだときと同じパスでも、ルートの外へは書き込まないよう先に確かめる
+        checkInsideRoot(path)
         if (path == loadedPath) return
         val exists = project.guessProjectDir()?.findFileByRelativePath(path) != null
         if (exists) {
             throw ConfigurationException(
                 "$path already exists. The editor holds the content of $loadedPath, so it would be overwritten.",
                 "Config File Already Exists",
+            )
+        }
+    }
+
+    /**
+     * [path] がプロジェクトルートの中のファイルを指すか確かめる。`..` や絶対パスでルートの外に出る場合は書き込めない。
+     *
+     * @throws ConfigurationException ルートの外（またはルートそのもの）を指す場合。
+     */
+    private fun checkInsideRoot(path: String) {
+        val root = project.guessProjectDir() ?: return
+        val rootPath = Path.of(root.path).normalize()
+        val target = try {
+            rootPath.resolve(path).normalize()
+        } catch (_: InvalidPathException) {
+            null
+        }
+        if (target == null || target == rootPath || !target.startsWith(rootPath)) {
+            throw ConfigurationException(
+                "$path is outside the project root.",
+                "Invalid Config File Path",
             )
         }
     }
