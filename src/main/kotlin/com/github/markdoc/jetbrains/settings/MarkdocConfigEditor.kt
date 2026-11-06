@@ -10,6 +10,7 @@ import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vfs.VFileProperty
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
@@ -117,6 +118,18 @@ class MarkdocConfigEditor(private val project: Project) {
                 "$path is outside the project root.",
                 "Invalid Config File Path",
             )
+        }
+        // 字句上はルートの中でも、途中のディレクトリやファイルがシンボリックリンクだとルートの外へ書き込めてしまう。
+        // すでにある部分を VFS でたどり、シンボリックリンクが含まれていれば書き込まない。
+        var current: VirtualFile = root
+        for (name in rootPath.relativize(target).map { it.toString() }) {
+            current = current.findChild(name) ?: break
+            if (current.`is`(VFileProperty.SYMLINK)) {
+                throw ConfigurationException(
+                    "$path goes through a symbolic link, which may point outside the project root.",
+                    "Invalid Config File Path",
+                )
+            }
         }
     }
 
