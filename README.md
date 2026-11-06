@@ -11,7 +11,7 @@
 
 Node.js プラグインと Markdown プラグインの両方が使える IDE に対応する（Marketplace の互換性表示による）。
 
-- 対応：WebStorm、IntelliJ IDEA（Ultimate・統合版）、PyCharm Professional、PhpStorm、GoLand、RubyMine、Rider、CLion、DataGrip
+- 対応：WebStorm、IntelliJ IDEA（Ultimate・統合版）、PyCharm Professional、PhpStorm、GoLand、RubyMine、Rider、CLion
 - 非対応：
   - Android Studio、IntelliJ IDEA Community、PyCharm Community、DataSpell（Node.js プラグインがない）
   - RustRover（Markdown プラグインがない）

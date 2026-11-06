@@ -1,5 +1,6 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
     id("org.jetbrains.intellij.platform") version "2.19.0"
@@ -45,9 +46,13 @@ intellijPlatform {
                 IntelliJPlatformType.RubyMine,
                 IntelliJPlatformType.Rider,
                 IntelliJPlatformType.CLion,
-                IntelliJPlatformType.DataGrip,
             ).forEach { create(it, minVersion) }
         }
+        failureLevel = listOf(
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+            VerifyPluginTask.FailureLevel.INVALID_PLUGIN,
+            VerifyPluginTask.FailureLevel.MISSING_DEPENDENCIES,
+        )
     }
 }
 
