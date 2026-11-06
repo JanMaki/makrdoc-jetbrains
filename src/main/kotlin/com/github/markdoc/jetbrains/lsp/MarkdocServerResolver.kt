@@ -1,14 +1,18 @@
 package com.github.markdoc.jetbrains.lsp
 
+import com.github.markdoc.jetbrains.settings.MarkdocSettings
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.extensions.PluginId
+import com.intellij.openapi.project.Project
 import java.nio.file.Files
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 /**
  * 起動する言語サーバーのエントリーポイントを解決する。
  *
- * サーバーは esbuild で 1 ファイルにまとめられ、プラグインの配布ディレクトリ直下の
+ * 設定でサーバーが指定されていればそれを使い、なければ同梱のサーバーを使う。
+ * 同梱サーバーは esbuild で 1 ファイルにまとめられ、プラグインの配布ディレクトリ直下の
  * `server/` に置かれている（JAR の中ではないので、Node.js からそのまま実行できる）。
  */
 object MarkdocServerResolver {
@@ -17,11 +21,24 @@ object MarkdocServerResolver {
     /** プラグインの配布ディレクトリからの、同梱サーバーの相対パス。 */
     private const val BUNDLED_SERVER = "server/markdoc-lsp-server.js"
 
-    /** 起動するサーバーの JS ファイルを返す。見つからなければ `null`。 */
-    fun resolve(): Path? = bundledServer()
+    /**
+     * 起動するサーバーの JS ファイルを返す。見つからなければ `null`。
+     *
+     * 設定でパスを指定したのに、そのファイルがない場合は同梱サーバーに切り替えず `null` を返す
+     * （意図と違うサーバーで黙って動かさないため）。
+     */
+    fun resolve(project: Project): Path? {
+        val custom = MarkdocSettings.getInstance(project).customServerPath
+        if (custom.isEmpty()) return bundledServer()
+        return try {
+            Path.of(custom).takeIf { Files.isRegularFile(it) }
+        } catch (_: InvalidPathException) {
+            null
+        }
+    }
 
     /** プラグインに同梱したサーバーを返す。配布物が壊れていてファイルがなければ `null`。 */
-    private fun bundledServer(): Path? {
+    fun bundledServer(): Path? {
         val pluginPath = PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID))?.pluginPath ?: return null
         return pluginPath.resolve(BUNDLED_SERVER).takeIf { Files.isRegularFile(it) }
     }

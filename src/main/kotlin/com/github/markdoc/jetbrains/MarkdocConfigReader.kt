@@ -1,5 +1,6 @@
 package com.github.markdoc.jetbrains
 
+import com.github.markdoc.jetbrains.settings.MarkdocSettings
 import com.google.gson.*
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
@@ -17,9 +18,6 @@ import java.nio.file.Path
  * （`path`、`schema`、`routing` など）に対応する。
  */
 object MarkdocConfigReader {
-    /** プロジェクトルートからの設定ファイルの相対パス。 */
-    const val DEFAULT_CONFIG_PATH = "markdoc.config.json"
-
     /** [read] の結果。 */
     sealed interface Result {
         /** 設定ファイルがない。 */
@@ -42,9 +40,9 @@ object MarkdocConfigReader {
         data class Found(val file: VirtualFile, val config: JsonObject) : Result
     }
 
-    /** プロジェクトルートにある設定ファイルを返す。なければ `null`。 */
+    /** 設定（[MarkdocSettings.configPath]）で指定された、プロジェクトルートからの設定ファイルを返す。なければ `null`。 */
     fun findConfigFile(project: Project): VirtualFile? =
-        project.guessProjectDir()?.findFileByRelativePath(DEFAULT_CONFIG_PATH)
+        project.guessProjectDir()?.findFileByRelativePath(MarkdocSettings.getInstance(project).configPath)
 
     /**
      * [project] の設定ファイルを読み、サーバーに渡す設定エントリを返す。
