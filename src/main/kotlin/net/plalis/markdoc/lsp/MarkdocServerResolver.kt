@@ -17,7 +17,7 @@ import java.nio.file.Path
  * `server/` に置かれている（JAR の中ではないので、Node.js からそのまま実行できる）。
  */
 object MarkdocServerResolver {
-    private const val PLUGIN_ID = "com.github.markdoc.jetbrains"
+    private const val PLUGIN_ID = "net.plalis.markdoc"
 
     private val LOG = logger<MarkdocServerResolver>()
 

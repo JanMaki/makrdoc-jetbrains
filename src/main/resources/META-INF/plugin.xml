@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>com.github.markdoc.jetbrains</id>
+    <id>net.plalis.markdoc</id>
     <name>Markdoc Language Service</name>
     <vendor>JanMaki</vendor>
 
@@ -34,7 +34,7 @@
         <lang.inspectionSuppressor language="Markdown"
                                    implementationClass="net.plalis.markdoc.highlighting.MarkdocTagInspectionSuppressor"/>
         <projectConfigurable parentId="language" instance="net.plalis.markdoc.settings.MarkdocConfigurable"
-                             id="com.github.markdoc.jetbrains.settings" displayName="Markdoc"/>
+                             id="net.plalis.markdoc.settings" displayName="Markdoc"/>
         <colorSettingsPage implementation="net.plalis.markdoc.highlighting.MarkdocColorSettingsPage"/>
         <!-- Markdoc ファイルの Ctrl+B を、Markdown の太字の切り替えより「宣言へ移動」を優先させる -->
         <actionPromoter implementation="net.plalis.markdoc.MarkdocActionPromoter" order="last"/>

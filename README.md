@@ -108,7 +108,7 @@ IDE の再起動が必要。
 ## 構成
 
 ```
-src/main/kotlin/com/github/markdoc/jetbrains/
+src/main/kotlin/net/plalis/markdoc/
   MarkdocFiles.kt                    Markdoc ファイルの判定
   MarkdocConfigReader.kt             markdoc.config.json の読み込みと初期化オプションの組み立て
   MarkdocConfigFile.kt               markdoc.config.json の雛形と作成

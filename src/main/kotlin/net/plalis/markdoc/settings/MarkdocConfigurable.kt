@@ -21,7 +21,7 @@ import com.intellij.ui.dsl.builder.*
  * 設定は言語サーバーの起動時に読まれるため、変更を適用したら IDE の再起動を勧める。
  */
 class MarkdocConfigurable(private val project: Project) :
-    BoundSearchableConfigurable("Markdoc", "com.github.markdoc.jetbrains.settings") {
+    BoundSearchableConfigurable("Markdoc", "net.plalis.markdoc.settings") {
 
     private val settings = MarkdocSettings.getInstance(project)
     private val localSettings = MarkdocLocalSettings.getInstance(project)
