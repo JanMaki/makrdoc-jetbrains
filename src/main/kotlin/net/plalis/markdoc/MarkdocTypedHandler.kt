@@ -11,7 +11,7 @@ import com.intellij.psi.PsiFile
  *
  * - `/` を入力したら、続けて `%}` を補って自己終了タグ（`/%}`）を閉じる（[shouldCloseTag]）
  * - `/` か `"` を入力したら補完を開く。ファイルパスの属性値なら、その階層の候補が出る
- *   （[com.github.markdoc.jetbrains.paths.MarkdocPathCompletionContributor]）
+ *   （[net.plalis.markdoc.paths.MarkdocPathCompletionContributor]）
  *
  * どちらも同じ行の中だけを見る。コード（インラインコードとフェンスコードブロックの中身）の中では何もしない。
  */

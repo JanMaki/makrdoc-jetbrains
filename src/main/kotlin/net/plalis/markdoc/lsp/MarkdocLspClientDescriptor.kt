@@ -1,7 +1,7 @@
 package net.plalis.markdoc.lsp
 
-import com.github.markdoc.jetbrains.MarkdocConfigReader
-import com.github.markdoc.jetbrains.MarkdocFiles
+import net.plalis.markdoc.MarkdocConfigReader
+import net.plalis.markdoc.MarkdocFiles
 import com.google.gson.JsonObject
 import com.intellij.execution.process.BaseProcessHandler
 import com.intellij.javascript.nodejs.execution.NodeTargetRun

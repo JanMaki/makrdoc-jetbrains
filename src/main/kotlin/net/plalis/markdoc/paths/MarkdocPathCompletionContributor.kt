@@ -1,7 +1,7 @@
 package net.plalis.markdoc.paths
 
-import com.github.markdoc.jetbrains.MarkdocFiles
-import com.github.markdoc.jetbrains.MarkdocTagScanner
+import net.plalis.markdoc.MarkdocFiles
+import net.plalis.markdoc.MarkdocTagScanner
 import com.intellij.codeInsight.AutoPopupController
 import com.intellij.codeInsight.completion.CompletionContributor
 import com.intellij.codeInsight.completion.CompletionParameters

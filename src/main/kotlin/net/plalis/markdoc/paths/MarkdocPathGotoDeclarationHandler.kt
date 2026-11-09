@@ -1,6 +1,6 @@
 package net.plalis.markdoc.paths
 
-import com.github.markdoc.jetbrains.MarkdocFiles
+import net.plalis.markdoc.MarkdocFiles
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationHandler
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiElement

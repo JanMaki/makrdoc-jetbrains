@@ -1,13 +1,13 @@
 package net.plalis.markdoc
 
-import com.github.markdoc.jetbrains.MarkdocTagScanner.scan
+import net.plalis.markdoc.MarkdocTagScanner.scan
 
 
 /**
  * テキストから Markdoc のタグ（`{% … %}`）を探し、タグの中を種類ごとのトークンに切り分ける。
  *
- * タグの色分け（[com.github.markdoc.jetbrains.highlighting.MarkdocTagAnnotator]）と、属性値のファイルパスの
- * 特定（[com.github.markdoc.jetbrains.paths.MarkdocPathValue]）で使う。
+ * タグの色分け（[net.plalis.markdoc.highlighting.MarkdocTagAnnotator]）と、属性値のファイルパスの
+ * 特定（[net.plalis.markdoc.paths.MarkdocPathValue]）で使う。
  *
  * 構文の検証はしない（言語サーバーが行う）。書きかけのタグでも、それらしい部分を切り出せればよい。
  * 色を付けない部分（`=`、丸括弧、区切りの `,` や `:` など）はトークンにしない。

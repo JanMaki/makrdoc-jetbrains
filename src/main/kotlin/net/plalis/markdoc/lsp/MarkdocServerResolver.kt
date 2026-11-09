@@ -1,6 +1,6 @@
 package net.plalis.markdoc.lsp
 
-import com.github.markdoc.jetbrains.settings.MarkdocLocalSettings
+import net.plalis.markdoc.settings.MarkdocLocalSettings
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.extensions.PluginId

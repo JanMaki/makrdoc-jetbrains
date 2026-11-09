@@ -1,6 +1,6 @@
 package net.plalis.markdoc
 
-import com.github.markdoc.jetbrains.settings.MarkdocSettings
+import net.plalis.markdoc.settings.MarkdocSettings
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project

@@ -1,7 +1,7 @@
 package net.plalis.markdoc.lsp
 
-import com.github.markdoc.jetbrains.MarkdocConfigReader
-import com.github.markdoc.jetbrains.MarkdocFiles
+import net.plalis.markdoc.MarkdocConfigReader
+import net.plalis.markdoc.MarkdocFiles
 import com.intellij.ide.trustedProjects.TrustedProjects
 import com.intellij.javascript.nodejs.interpreter.NodeJsInterpreterManager
 import com.intellij.javascript.nodejs.interpreter.local.NodeJsLocalInterpreter

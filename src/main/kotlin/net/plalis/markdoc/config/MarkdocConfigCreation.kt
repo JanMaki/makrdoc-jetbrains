@@ -1,6 +1,6 @@
 package net.plalis.markdoc.config
 
-import com.github.markdoc.jetbrains.MarkdocConfigFile
+import net.plalis.markdoc.MarkdocConfigFile
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project

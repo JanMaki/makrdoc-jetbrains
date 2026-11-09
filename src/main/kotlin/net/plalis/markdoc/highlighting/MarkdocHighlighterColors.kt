@@ -1,6 +1,6 @@
 package net.plalis.markdoc.highlighting
 
-import com.github.markdoc.jetbrains.MarkdocTagScanner.Kind
+import net.plalis.markdoc.MarkdocTagScanner.Kind
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors as Default
 

@@ -1,6 +1,6 @@
 package net.plalis.markdoc
 
-import com.github.markdoc.jetbrains.settings.MarkdocSettings
+import net.plalis.markdoc.settings.MarkdocSettings
 import com.google.gson.*
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir

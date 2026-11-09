@@ -1,6 +1,6 @@
 package net.plalis.markdoc.lsp
 
-import com.github.markdoc.jetbrains.MarkdocTagScanner
+import net.plalis.markdoc.MarkdocTagScanner
 import com.google.gson.JsonObject
 import com.intellij.codeInsight.AutoPopupController
 import com.intellij.codeInsight.completion.CompletionParameters

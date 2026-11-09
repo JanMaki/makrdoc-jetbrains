@@ -1,7 +1,7 @@
 package net.plalis.markdoc.highlighting
 
-import com.github.markdoc.jetbrains.MarkdocFiles
-import com.github.markdoc.jetbrains.MarkdocTagScanner
+import net.plalis.markdoc.MarkdocFiles
+import net.plalis.markdoc.MarkdocTagScanner
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.annotation.HighlightSeverity

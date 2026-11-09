@@ -1,8 +1,8 @@
 package net.plalis.markdoc.highlighting
 
-import com.github.markdoc.jetbrains.MarkdocConfigReader
-import com.github.markdoc.jetbrains.MarkdocFiles
-import com.github.markdoc.jetbrains.MarkdocTagScanner
+import net.plalis.markdoc.MarkdocConfigReader
+import net.plalis.markdoc.MarkdocFiles
+import net.plalis.markdoc.MarkdocTagScanner
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.CachedValueProvider

@@ -1,7 +1,7 @@
 package net.plalis.markdoc.config
 
-import com.github.markdoc.jetbrains.MarkdocConfigFile
-import com.github.markdoc.jetbrains.MarkdocConfigReader
+import net.plalis.markdoc.MarkdocConfigFile
+import net.plalis.markdoc.MarkdocConfigReader
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction

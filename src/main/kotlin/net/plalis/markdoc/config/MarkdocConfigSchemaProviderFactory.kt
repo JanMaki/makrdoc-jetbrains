@@ -1,6 +1,6 @@
 package net.plalis.markdoc.config
 
-import com.github.markdoc.jetbrains.MarkdocConfigReader
+import net.plalis.markdoc.MarkdocConfigReader
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.jetbrains.jsonSchema.extension.JsonSchemaFileProvider
@@ -10,7 +10,7 @@ import com.jetbrains.jsonSchema.extension.SchemaType
 /**
  * `markdoc.config.json` に JSON スキーマを割り当て、キーの補完、説明の表示、値の検査を効かせる。
  *
- * 対象は設定（[com.github.markdoc.jetbrains.settings.MarkdocSettings.configPath]）で指定された設定ファイル。
+ * 対象は設定（[net.plalis.markdoc.settings.MarkdocSettings.configPath]）で指定された設定ファイル。
  * JSON プラグインがない IDE でも動くように、`json.xml` で任意の依存として登録する。
  */
 class MarkdocConfigSchemaProviderFactory : JsonSchemaProviderFactory {

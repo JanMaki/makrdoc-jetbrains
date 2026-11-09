@@ -1,7 +1,7 @@
 package net.plalis.markdoc.paths
 
-import com.github.markdoc.jetbrains.MarkdocTagScanner
-import com.github.markdoc.jetbrains.MarkdocTagScanner.Kind
+import net.plalis.markdoc.MarkdocTagScanner
+import net.plalis.markdoc.MarkdocTagScanner.Kind
 
 /**
  * タグの属性値に書かれたファイルパス（`{% partial file="partials/footer.mdoc" /%}` の `partials/footer.mdoc`）。

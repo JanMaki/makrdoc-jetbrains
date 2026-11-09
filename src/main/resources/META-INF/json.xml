@@ -2,6 +2,6 @@
     <extensions defaultExtensionNs="JavaScript">
         <!-- markdoc.config.json のキーの補完と検査 -->
         <JsonSchema.ProviderFactory
-                implementation="com.github.markdoc.jetbrains.config.MarkdocConfigSchemaProviderFactory"/>
+                implementation="net.plalis.markdoc.config.MarkdocConfigSchemaProviderFactory"/>
     </extensions>
 </idea-plugin>

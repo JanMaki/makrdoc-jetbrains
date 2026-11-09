@@ -1,9 +1,9 @@
 package net.plalis.markdoc.config
 
-import com.github.markdoc.jetbrains.MarkdocConfigReader
-import com.github.markdoc.jetbrains.MarkdocFiles
-import com.github.markdoc.jetbrains.settings.MarkdocConfigurable
-import com.github.markdoc.jetbrains.settings.MarkdocSettings
+import net.plalis.markdoc.MarkdocConfigReader
+import net.plalis.markdoc.MarkdocFiles
+import net.plalis.markdoc.settings.MarkdocConfigurable
+import net.plalis.markdoc.settings.MarkdocSettings
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
@@ -126,7 +126,7 @@ class MarkdocConfigNotifier(private val project: Project) : Disposable {
         private const val NOTIFICATION_GROUP = "Markdoc"
 
         /** 通知を出したことを [PropertiesComponent] に覚えるキー。 */
-        private const val SHOWN_KEY = "com.github.markdoc.jetbrains.configNotificationShown"
+        private const val SHOWN_KEY = "net.plalis.markdoc.configNotificationShown"
 
         /** Markdoc のタグ（`{% … %}`）。1 行の中で閉じているものだけを見る。 */
         private val TAG = Regex("""\{%.*?%}""")

@@ -1,7 +1,7 @@
 package net.plalis.markdoc.settings
 
-import com.github.markdoc.jetbrains.MarkdocConfigFile
-import com.github.markdoc.jetbrains.MarkdocConfigReader
+import net.plalis.markdoc.MarkdocConfigFile
+import net.plalis.markdoc.MarkdocConfigReader
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
 import com.intellij.openapi.editor.EditorFactory
