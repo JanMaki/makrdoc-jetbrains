@@ -23,35 +23,35 @@
     <extensions defaultExtensionNs="com.intellij">
         <!-- 独自のファイルタイプは作らず、既存の Markdown ファイルタイプに拡張子を追加する -->
         <fileType name="Markdown" extensions="mdoc;markdoc" patterns="*.markdoc.md"/>
-        <typedHandler implementation="com.github.markdoc.jetbrains.MarkdocTypedHandler"/>
+        <typedHandler implementation="net.plalis.markdoc.MarkdocTypedHandler"/>
         <!-- タグの色分け。Markdown ファイルのうち Markdoc ファイルだけを対象にする -->
         <annotator language="Markdown"
-                   implementationClass="com.github.markdoc.jetbrains.highlighting.MarkdocTagAnnotator"/>
+                   implementationClass="net.plalis.markdoc.highlighting.MarkdocTagAnnotator"/>
         <!-- タグの中の `$a["key"]` などを Markdown が参照リンクとして扱うため、その色（フィルター）と
              インスペクションの警告（サプレッサー）をタグの中だけ除く -->
         <daemon.highlightInfoFilter
-                implementation="com.github.markdoc.jetbrains.highlighting.MarkdocTagHighlightFilter"/>
+                implementation="net.plalis.markdoc.highlighting.MarkdocTagHighlightFilter"/>
         <lang.inspectionSuppressor language="Markdown"
-                                   implementationClass="com.github.markdoc.jetbrains.highlighting.MarkdocTagInspectionSuppressor"/>
-        <projectConfigurable parentId="language" instance="com.github.markdoc.jetbrains.settings.MarkdocConfigurable"
+                                   implementationClass="net.plalis.markdoc.highlighting.MarkdocTagInspectionSuppressor"/>
+        <projectConfigurable parentId="language" instance="net.plalis.markdoc.settings.MarkdocConfigurable"
                              id="com.github.markdoc.jetbrains.settings" displayName="Markdoc"/>
-        <colorSettingsPage implementation="com.github.markdoc.jetbrains.highlighting.MarkdocColorSettingsPage"/>
+        <colorSettingsPage implementation="net.plalis.markdoc.highlighting.MarkdocColorSettingsPage"/>
         <!-- Markdoc ファイルの Ctrl+B を、Markdown の太字の切り替えより「宣言へ移動」を優先させる -->
-        <actionPromoter implementation="com.github.markdoc.jetbrains.MarkdocActionPromoter" order="last"/>
+        <actionPromoter implementation="net.plalis.markdoc.MarkdocActionPromoter" order="last"/>
         <!-- 属性値のファイルパス（partial の file など）からの移動と補完 -->
-        <gotoDeclarationHandler implementation="com.github.markdoc.jetbrains.paths.MarkdocPathGotoDeclarationHandler"/>
+        <gotoDeclarationHandler implementation="net.plalis.markdoc.paths.MarkdocPathGotoDeclarationHandler"/>
         <!-- パスの中ではほかの補完を止めるため、先に動かす -->
         <completion.contributor language="Markdown" order="first"
-                                implementationClass="com.github.markdoc.jetbrains.paths.MarkdocPathCompletionContributor"/>
+                                implementationClass="net.plalis.markdoc.paths.MarkdocPathCompletionContributor"/>
         <!-- 設定ファイルがないときに、作成を勧める通知を出す -->
         <notificationGroup id="Markdoc" displayType="BALLOON"/>
-        <postStartupActivity implementation="com.github.markdoc.jetbrains.config.MarkdocConfigStartup"/>
+        <postStartupActivity implementation="net.plalis.markdoc.config.MarkdocConfigStartup"/>
     </extensions>
 
     <actions>
         <!-- New メニューから公式 README の例の中身で設定ファイルを作る -->
         <action id="Markdoc.NewConfigFile"
-                class="com.github.markdoc.jetbrains.config.NewMarkdocConfigAction"
+                class="net.plalis.markdoc.config.NewMarkdocConfigAction"
                 text="Markdoc Config File"
                 description="Create markdoc.config.json from the example configuration"
                 icon="AllIcons.FileTypes.Json">
